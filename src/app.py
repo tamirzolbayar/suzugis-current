@@ -296,9 +296,6 @@ else:
 
 
 # Counts
-st.sidebar.markdown("---")
-st.sidebar.subheader("📊 表示集計")
-
 restriction_counts = pd.Series(
     [feature.get("properties", {}).get("規制種別", "") for feature in filtered_features]
 )
@@ -309,27 +306,6 @@ alternate_count = int(
 )
 lane_count = int(restriction_counts.astype(str).str.contains("車線", na=False).sum())
 completed_count = int(restriction_counts.astype(str).str.contains("完了", na=False).sum())
-
-metric_cols = st.sidebar.columns(2)
-metric_cols[0].metric("表示中", len(filtered_features))
-metric_cols[1].metric("全面通行止め", full_closure_count)
-metric_cols[0].metric("片側交互通行", alternate_count)
-metric_cols[1].metric("車線規制", lane_count)
-metric_cols[0].metric("完了", completed_count)
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("🧭 凡例")
-st.sidebar.markdown(
-    """
-    <div style="font-size:13px; line-height:1.9;">
-        <div><span style="display:inline-block;width:24px;height:5px;background:#d32f2f;margin-right:8px;vertical-align:middle;"></span>全面通行止め</div>
-        <div><span style="display:inline-block;width:24px;height:5px;background:#f57c00;margin-right:8px;vertical-align:middle;"></span>片側交互通行</div>
-        <div><span style="display:inline-block;width:24px;height:5px;background:#fbc02d;margin-right:8px;vertical-align:middle;"></span>車線規制</div>
-        <div><span style="display:inline-block;width:24px;height:5px;background:#1976d2;margin-right:8px;vertical-align:middle;"></span>完了</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
 
 m = folium.Map(
     location=DEFAULT_LOCATION,
@@ -364,6 +340,43 @@ if len(geojson_data["features"]) > 0:
 
 else:
     st.warning("この条件に該当する規制区間はありません。")
+
+map_summary_html = f"""
+<div style="
+    position: fixed;
+    right: 24px;
+    bottom: 44px;
+    z-index: 9999;
+    min-width: 210px;
+    background: rgba(255,255,255,0.94);
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.14);
+    padding: 10px 12px;
+    color: #1f2937;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    line-height: 1.45;
+">
+    <div style="font-weight:700; font-size:13px; margin-bottom:6px;">📊 表示集計</div>
+    <div style="display:grid; grid-template-columns: 1fr auto; gap:2px 12px;">
+        <span>表示中</span><strong>{len(filtered_features)}</strong>
+        <span>全面通行止め</span><strong>{full_closure_count}</strong>
+        <span>片側交互通行</span><strong>{alternate_count}</strong>
+        <span>車線規制</span><strong>{lane_count}</strong>
+        <span>完了</span><strong>{completed_count}</strong>
+    </div>
+    <div style="height:1px; background:#e5e7eb; margin:8px 0;"></div>
+    <div style="font-weight:700; font-size:13px; margin-bottom:6px;">🧭 凡例</div>
+    <div style="display:grid; gap:4px;">
+        <div><span style="display:inline-block;width:26px;height:5px;background:#d32f2f;margin-right:8px;vertical-align:middle;"></span>全面通行止め</div>
+        <div><span style="display:inline-block;width:26px;height:5px;background:#f57c00;margin-right:8px;vertical-align:middle;"></span>片側交互通行</div>
+        <div><span style="display:inline-block;width:26px;height:5px;background:#fbc02d;margin-right:8px;vertical-align:middle;"></span>車線規制</div>
+        <div><span style="display:inline-block;width:26px;height:5px;background:#1976d2;margin-right:8px;vertical-align:middle;"></span>完了</div>
+    </div>
+</div>
+"""
+m.get_root().html.add_child(folium.Element(map_summary_html))
 
 folium.LayerControl().add_to(m)
 
