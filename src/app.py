@@ -127,6 +127,7 @@ def build_sample_detour_routes(features):
 
 
 def make_complaint_tooltip(complaint):
+    status_color = COMPLAINT_STATUS_COLORS.get(complaint["status"], "#7c3aed")
     return f"""
     <div style="
         font-size:13px;
@@ -138,7 +139,7 @@ def make_complaint_tooltip(complaint):
         word-break:break-word;
         box-sizing:border-box;
     ">
-        <div style="font-weight:700; color:#4c1d95; margin-bottom:4px;">
+        <div style="font-weight:700; color:{status_color}; margin-bottom:4px;">
             苦情 {complaint["id"]} / {complaint["status"]}
         </div>
         <div><b>地区:</b> {complaint["district"]}</div>
@@ -146,7 +147,7 @@ def make_complaint_tooltip(complaint):
         <div><b>住所:</b> {complaint["address"]}</div>
         <div><b>電話番号:</b> {complaint["phone"]}</div>
         <div style="margin-top:6px;"><b>苦情内容:</b><br>{complaint["content"]}</div>
-        <div style="margin-top:6px;"><b>対策:</b><br>{complaint["response"]}</div>
+        <div style="margin-top:6px;"><b>対応:</b><br>{complaint["response"]}</div>
     </div>
     """
 
@@ -170,7 +171,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 GEOJSON_PATH = BASE_DIR / "data" / "geojson" / "suzu_sample.geojson"
 EXCEL_PATH = BASE_DIR / "data" / "excel" / "restriction_list.xlsx"
 DETOUR_COLOR = "#2e7d32"
-COMPLAINT_COLOR = "#7c3aed"
+COMPLAINT_STATUS_COLORS = {
+    "未対応": "#d32f2f",
+    "対応済み": "#1b5e20",
+    "対応中": "#7c3aed",
+}
 SAMPLE_DETOUR_ROUTES = [
     {"name": "飯田地区 サンプル迂回路 1", "restriction_ids": ["R-203"]},
     {"name": "飯田地区 サンプル迂回路 2", "restriction_ids": ["R-188", "R-206"]},
@@ -197,7 +202,7 @@ COMPLAINTS = [
         "phone": "0768-82-2198",
         "content": "夜間の仮設照明が住宅側に向いていてまぶしい。",
         "response": "照明角度を道路側へ調整し、遮光板を追加設置。",
-        "status": "対応済",
+        "status": "対応済み",
     },
     {
         "id": "C-003",
@@ -208,7 +213,7 @@ COMPLAINTS = [
         "phone": "0768-82-3375",
         "content": "片側交互通行の待ち時間が長く、バス停への到着が遅れる。",
         "response": "信号サイクルを見直し、バス通過時間帯は誘導員による優先案内を実施。",
-        "status": "確認中",
+        "status": "未対応",
     },
     {
         "id": "C-004",
@@ -241,7 +246,7 @@ COMPLAINTS = [
         "phone": "0768-82-7830",
         "content": "迂回案内の看板が小さく、交差点で迷う車が多い。",
         "response": "案内看板を大きいものに交換し、交差点手前にも予告看板を追加。",
-        "status": "対応済",
+        "status": "対応済み",
     },
     {
         "id": "C-007",
@@ -252,7 +257,7 @@ COMPLAINTS = [
         "phone": "0768-82-5409",
         "content": "朝方の重機作業音が大きく、近隣住宅で会話が聞き取りにくい。",
         "response": "早朝作業を必要最小限にし、防音シートの設置範囲を拡大。",
-        "status": "確認中",
+        "status": "未対応",
     },
     {
         "id": "C-008",
@@ -274,7 +279,7 @@ COMPLAINTS = [
         "phone": "0768-82-9044",
         "content": "雨天時に排水が悪く、住宅前に水たまりができる。",
         "response": "仮排水溝を清掃し、土のうで水の流れを側溝へ誘導。",
-        "status": "対応済",
+        "status": "対応済み",
     },
     {
         "id": "C-010",
@@ -285,7 +290,7 @@ COMPLAINTS = [
         "phone": "0768-82-6731",
         "content": "工事車両の駐車位置により、見通しが悪くなっている。",
         "response": "駐車禁止範囲を設定し、作業車の待機場所を変更。",
-        "status": "対応済",
+        "status": "対応済み",
     },
     {
         "id": "C-011",
@@ -318,7 +323,7 @@ COMPLAINTS = [
         "phone": "0768-82-7925",
         "content": "港方面への案内が分かりにくく、観光客が住宅地へ入り込む。",
         "response": "港方面の誘導看板を追加し、既設看板の矢印方向を修正。",
-        "status": "確認中",
+        "status": "未対応",
     },
     {
         "id": "C-014",
@@ -329,7 +334,7 @@ COMPLAINTS = [
         "phone": "0768-82-4088",
         "content": "通学時間帯に工事車両が多く、児童の横断が不安。",
         "response": "通学時間帯の搬入を避け、横断箇所に誘導員を配置。",
-        "status": "対応済",
+        "status": "対応済み",
     },
     {
         "id": "C-015",
@@ -351,7 +356,7 @@ COMPLAINTS = [
         "phone": "0768-82-6093",
         "content": "工事区間手前の道路幅が狭く、対向車とのすれ違いが怖い。",
         "response": "待避場所を明示し、幅員注意看板を手前に追加。",
-        "status": "確認中",
+        "status": "未対応",
     },
     {
         "id": "C-017",
@@ -362,7 +367,7 @@ COMPLAINTS = [
         "phone": "0768-82-8740",
         "content": "夜間に仮設段差が見えづらく、車の底を擦りそうになる。",
         "response": "反射材付き段差プレートと夜間点滅灯を設置。",
-        "status": "対応済",
+        "status": "対応済み",
     },
     {
         "id": "C-018",
@@ -449,7 +454,7 @@ with st.sidebar:
     st.subheader("🏗 施工者")
 
     contractors = ["すべて"] + sorted(df["施工者"].dropna().unique().tolist())
-    
+
     contractor_filter = st.selectbox(
         "施工者を選択",
         contractors
@@ -532,7 +537,7 @@ with st.sidebar:
             else:
                 st.caption("バックアップ作成：未確認")
             st.rerun()
-    
+
 
 # GeoJSON load
 with open(GEOJSON_PATH, "r", encoding="utf-8") as f:
@@ -655,6 +660,7 @@ visible_complaints = [
 if visible_complaints:
     complaint_layer = folium.FeatureGroup(name="苦情", show=True)
     for complaint in visible_complaints:
+        complaint_color = COMPLAINT_STATUS_COLORS.get(complaint["status"], "#7c3aed")
         folium.Marker(
             location=complaint["location"],
             tooltip=folium.Tooltip(make_complaint_tooltip(complaint), sticky=True),
@@ -665,7 +671,7 @@ if visible_complaints:
                     width:28px;
                     height:28px;
                     border-radius:50%;
-                    background:{COMPLAINT_COLOR};
+                    background:{complaint_color};
                     color:white;
                     border:3px solid white;
                     box-shadow:0 2px 8px rgba(0,0,0,0.35);
@@ -717,7 +723,9 @@ map_summary_html = f"""
         <div><span style="display:inline-block;width:26px;height:5px;background:#fbc02d;margin-right:8px;vertical-align:middle;"></span>車線規制</div>
         <div><span style="display:inline-block;width:26px;height:5px;background:#1976d2;margin-right:8px;vertical-align:middle;"></span>完了</div>
         <div><span style="display:inline-block;width:26px;height:5px;background:#2e7d32;margin-right:8px;vertical-align:middle;"></span>迂回路</div>
-        <div><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#7c3aed;color:white;text-align:center;line-height:18px;font-weight:800;margin-right:8px;vertical-align:middle;">!</span>苦情</div>
+        <div><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#d32f2f;color:white;text-align:center;line-height:18px;font-weight:800;margin-right:8px;vertical-align:middle;">!</span>苦情 未対応</div>
+        <div><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#1b5e20;color:white;text-align:center;line-height:18px;font-weight:800;margin-right:8px;vertical-align:middle;">!</span>苦情 対応済み</div>
+        <div><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#7c3aed;color:white;text-align:center;line-height:18px;font-weight:800;margin-right:8px;vertical-align:middle;">!</span>苦情 対応中</div>
     </div>
 </div>
 """
