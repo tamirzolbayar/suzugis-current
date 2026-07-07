@@ -731,6 +731,26 @@ map_summary_html = f"""
 """
 m.get_root().html.add_child(folium.Element(map_summary_html))
 
-folium.LayerControl(position="topright", collapsed=True).add_to(m)
+map_settings_label_html = """
+<div style="
+    position: fixed;
+    top: 10px;
+    right: 58px;
+    z-index: 9999;
+    background: rgba(255,255,255,0.94);
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: #1f2937;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+">
+    地図設定
+</div>
+"""
+m.get_root().html.add_child(folium.Element(map_settings_label_html))
+
+folium.LayerControl(position="topright", collapsed=False).add_to(m)
 
 st_folium(m, width=1500, height=850)
