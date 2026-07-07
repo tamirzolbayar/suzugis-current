@@ -90,6 +90,71 @@ def get_feature_bounds(features):
     return [[min(lats), min(lngs)], [max(lats), max(lngs)]]
 
 
+def find_feature_by_restriction_id(features, restriction_id):
+    for feature in features:
+        props = feature.get("properties", {})
+        if props.get("規制ID") == restriction_id:
+            return feature
+    return None
+
+
+def line_coordinates_to_locations(feature):
+    geometry = feature.get("geometry", {})
+    if geometry.get("type") != "LineString":
+        return []
+
+    return [
+        [coordinate[1], coordinate[0]]
+        for coordinate in geometry.get("coordinates", [])
+        if len(coordinate) >= 2
+    ]
+
+
+def make_neighboring_route(locations, offset_direction):
+    if len(locations) < 2:
+        return []
+
+    start_lat, start_lng = locations[0]
+    end_lat, end_lng = locations[-1]
+    lng_delta = end_lng - start_lng
+    lat_delta = end_lat - start_lat
+    length = (lng_delta**2 + lat_delta**2) ** 0.5
+
+    if length == 0:
+        return []
+
+    normal_lng = -lat_delta / length
+    normal_lat = lng_delta / length
+    offset = DETOUR_OFFSET_DEGREES * offset_direction
+
+    return [
+        [lat + normal_lat * offset, lng + normal_lng * offset]
+        for lat, lng in locations
+    ]
+
+
+def build_detour_routes(features, district):
+    routes = []
+    for source in DETOUR_ROUTE_SOURCES.get(district, []):
+        feature = find_feature_by_restriction_id(features, source["restriction_id"])
+        if feature is None:
+            continue
+
+        neighboring_locations = make_neighboring_route(
+            line_coordinates_to_locations(feature),
+            source.get("offset", 1),
+        )
+        if neighboring_locations:
+            routes.append(
+                {
+                    "name": source["name"],
+                    "locations": neighboring_locations,
+                }
+            )
+
+    return routes
+
+
 def prepare_map_properties(features):
     for feature in features:
         props = feature.setdefault("properties", {})
@@ -109,63 +174,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 GEOJSON_PATH = BASE_DIR / "data" / "geojson" / "suzu_sample.geojson"
 EXCEL_PATH = BASE_DIR / "data" / "excel" / "restriction_list.xlsx"
 DETOUR_COLOR = "#2e7d32"
-DETOUR_ROUTES = {
+DETOUR_OFFSET_DEGREES = 0.00012
+DETOUR_ROUTE_SOURCES = {
     "飯田": [
-        {
-            "name": "飯田地区 北側迂回路",
-            "locations": [
-                [37.444525, 137.255836],
-                [37.444885, 137.255254],
-                [37.444942, 137.254452],
-                [37.445507, 137.253385],
-                [37.445625, 137.252493],
-                [37.445492, 137.252105],
-            ],
-        },
-        {
-            "name": "飯田地区 西側迂回路",
-            "locations": [
-                [37.442075, 137.245162],
-                [37.441725, 137.246022],
-                [37.441617, 137.246939],
-                [37.441106, 137.247519],
-                [37.440929, 137.248655],
-                [37.440424, 137.249868],
-            ],
-        },
-        {
-            "name": "飯田地区 中央迂回路",
-            "locations": [
-                [37.441067, 137.253166],
-                [37.440608, 137.254154],
-                [37.440499, 137.254601],
-                [37.439932, 137.254927],
-                [37.439452, 137.255177],
-                [37.438492, 137.256515],
-            ],
-        },
-        {
-            "name": "飯田地区 東側迂回路",
-            "locations": [
-                [37.446206, 137.264801],
-                [37.446208, 137.265509],
-                [37.446059, 137.265896],
-                [37.445810, 137.266124],
-                [37.445521, 137.266227],
-                [37.444815, 137.266153],
-            ],
-        },
-        {
-            "name": "飯田地区 南側迂回路",
-            "locations": [
-                [37.433333, 137.248024],
-                [37.434622, 137.246814],
-                [37.435515, 137.246095],
-                [37.436641, 137.244978],
-                [37.437487, 137.244158],
-                [37.438511, 137.243226],
-            ],
-        },
+        {"name": "飯田地区 迂回路 R-003", "restriction_id": "R-003", "offset": 1},
+        {"name": "飯田地区 迂回路 R-098", "restriction_id": "R-098", "offset": -1},
+        {"name": "飯田地区 迂回路 R-101", "restriction_id": "R-101", "offset": 1},
+        {"name": "飯田地区 迂回路 R-106", "restriction_id": "R-106", "offset": -1},
+        {"name": "飯田地区 迂回路 R-113", "restriction_id": "R-113", "offset": 1},
     ]
 }
 PRIORITY_DISTRICTS = ["蛸島", "正院", "飯田", "上戸", "直", "宝立"]
@@ -233,9 +249,9 @@ with st.sidebar:
         default=PRIORITY_DISTRICTS,
     )
 
-    st.subheader("🟢 迂回路")
+    st.subheader("迂回路")
     show_detours = st.checkbox("迂回路を表示", value=True)
-    detour_district = st.selectbox("迂回路地区", list(DETOUR_ROUTES.keys()))
+    detour_district = st.selectbox("迂回路地区", list(DETOUR_ROUTE_SOURCES.keys()))
 
     st.subheader("🚧 規制種別")
 
@@ -336,6 +352,8 @@ with st.sidebar:
 with open(GEOJSON_PATH, "r", encoding="utf-8") as f:
     geojson_data = json.load(f)
 
+all_features = geojson_data["features"]
+
 geojson_data, filtered_features = apply_filters(
     geojson_data=geojson_data,
     restriction_dict=restriction_dict,
@@ -387,7 +405,7 @@ folium.TileLayer(
 
 visible_detour_routes = []
 if show_detours and detour_district in selected_districts:
-    visible_detour_routes = DETOUR_ROUTES.get(detour_district, [])
+    visible_detour_routes = build_detour_routes(all_features, detour_district)
 
 if visible_detour_routes:
     detour_layer = folium.FeatureGroup(name="迂回路", show=True)
@@ -395,8 +413,8 @@ if visible_detour_routes:
         route_name = route["name"]
         route_popup = f"""
         <div style="font-size:13px; line-height:1.6; min-width:180px;">
-            <div style="font-weight:700; color:#1b5e20;">🟢 {route_name}</div>
-            <div>安全通行推奨ルート</div>
+            <div style="font-weight:700; color:#1b5e20;">{route_name}</div>
+            <div>規制区間に隣接する迂回路</div>
         </div>
         """
         folium.PolyLine(
