@@ -90,6 +90,21 @@ def get_feature_bounds(features):
     return [[min(lats), min(lngs)], [max(lats), max(lngs)]]
 
 
+def get_location_bounds(routes):
+    lats = []
+    lngs = []
+
+    for route in routes:
+        for lat, lng in route["locations"]:
+            lats.append(lat)
+            lngs.append(lng)
+
+    if not lats or not lngs:
+        return None
+
+    return [[min(lats), min(lngs)], [max(lats), max(lngs)]]
+
+
 def find_feature_by_restriction_id(features, restriction_id):
     for feature in features:
         props = feature.get("properties", {})
@@ -420,28 +435,8 @@ folium.TileLayer(
 ).add_to(m)
 
 visible_detour_routes = []
-if show_detours and detour_district in selected_districts:
+if show_detours:
     visible_detour_routes = build_detour_routes(all_features, detour_district)
-
-if visible_detour_routes:
-    detour_layer = folium.FeatureGroup(name="迂回路", show=True)
-    for route in visible_detour_routes:
-        route_name = route["name"]
-        route_popup = f"""
-        <div style="font-size:13px; line-height:1.6; min-width:180px;">
-            <div style="font-weight:700; color:#1b5e20;">{route_name}</div>
-            <div>規制区間に隣接する迂回路</div>
-        </div>
-        """
-        folium.PolyLine(
-            locations=route["locations"],
-            color=DETOUR_COLOR,
-            weight=6,
-            opacity=0.92,
-            tooltip=route_name,
-            popup=folium.Popup(route_popup, max_width=260),
-        ).add_to(detour_layer)
-    detour_layer.add_to(m)
 
 if len(geojson_data["features"]) > 0:
     prepare_map_properties(geojson_data["features"])
@@ -462,6 +457,36 @@ if len(geojson_data["features"]) > 0:
 
 else:
     st.warning("この条件に該当する規制区間はありません。")
+
+if visible_detour_routes:
+    detour_layer = folium.FeatureGroup(name="迂回路", show=True)
+    for route in visible_detour_routes:
+        route_name = route["name"]
+        route_popup = f"""
+        <div style="font-size:13px; line-height:1.6; min-width:180px;">
+            <div style="font-weight:700; color:#1b5e20;">{route_name}</div>
+            <div>規制区間に隣接する迂回路</div>
+        </div>
+        """
+        folium.PolyLine(
+            locations=route["locations"],
+            color="#ffffff",
+            weight=11,
+            opacity=0.95,
+        ).add_to(detour_layer)
+        folium.PolyLine(
+            locations=route["locations"],
+            color=DETOUR_COLOR,
+            weight=7,
+            opacity=1.0,
+            tooltip=route_name,
+            popup=folium.Popup(route_popup, max_width=260),
+        ).add_to(detour_layer)
+    detour_layer.add_to(m)
+
+    detour_bounds = get_location_bounds(visible_detour_routes)
+    if detour_bounds is not None:
+        m.fit_bounds(detour_bounds, padding=(80, 80))
 
 map_summary_html = f"""
 <div style="
