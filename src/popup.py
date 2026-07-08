@@ -131,6 +131,27 @@ def water_details(props, work_type):
     """
 
 
+def drainage_details(props):
+    seed = record_seed(props)
+    drainage_method = pick_option(["側溝", "暗渠", "開水路", "集水桝連結"], seed)
+    length = 60 + (seed * 19) % 260
+    gutter_size = pick_option(["300×300", "400×400", "500×500", "600×600"], seed, 1)
+    catch_basins = 2 + (seed * 3) % 14
+    crossing_pipes = 1 + (seed * 2) % 7
+    drainage_direction = pick_option(["海側", "山側", "既設水路側", "幹線側溝側"], seed, 2)
+    capacity_status = pick_option(["改善予定", "改善中", "暫定改善済み", "能力確認中"], seed, 3)
+
+    return f"""
+        <b>排水方式:</b> {drainage_method}<br>
+        <b>施工延長:</b> {length}m<br>
+        <b>側溝サイズ:</b> {gutter_size}<br>
+        <b>集水桝:</b> {catch_basins}基<br>
+        <b>横断管:</b> {crossing_pipes}箇所<br>
+        <b>排水方向:</b> {drainage_direction}<br>
+        <b>排水能力:</b> {capacity_status}<br>
+    """
+
+
 def road_details(props, work_type):
     seed = record_seed(props)
     road_type = pick_option(["市道", "県道", "国道"], seed)
@@ -167,7 +188,9 @@ def road_details(props, work_type):
 
 
 def construction_details(props, work_type):
-    if "下水道" in work_type or "排水" in work_type or "水道" in work_type:
+    if "排水" in work_type:
+        return drainage_details(props)
+    if "下水道" in work_type or "水道" in work_type:
         return water_details(props, work_type)
     return road_details(props, work_type)
 
