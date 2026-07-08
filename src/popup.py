@@ -101,42 +101,75 @@ def construction_id(props):
     return f"C-{int(digits):03d}" if digits else raw_id
 
 
-def water_details(work_type):
+def record_seed(props):
+    raw_id = str(props.get("規制ID", "")).strip()
+    digits = "".join(char for char in raw_id if char.isdigit())
+    if digits:
+        return int(digits)
+    return sum(ord(char) for char in raw_id)
+
+
+def pick_option(options, seed, offset=0):
+    return options[(seed + offset) % len(options)]
+
+
+def water_details(props, work_type):
+    seed = record_seed(props)
     water_kind = "上水道"
     if "下水道" in work_type:
         water_kind = "下水道"
     elif "排水" in work_type:
         water_kind = "排水"
 
+    pipe_diameter = pick_option(["φ100", "φ150", "φ200", "φ250", "φ300"], seed)
+    length = 80 + (seed * 17) % 260
+
     return f"""
         <b>工事種別:</b> {water_kind}<br>
-        <b>管径:</b> φ150<br>
-        <b>施工延長:</b> 185m<br>
+        <b>管径:</b> {pipe_diameter}<br>
+        <b>施工延長:</b> {length}m<br>
     """
 
 
-def road_details(work_type):
-    road_type = "市道"
-    if "橋梁" in work_type:
-        road_type = "県道"
+def road_details(props, work_type):
+    seed = record_seed(props)
+    road_type = pick_option(["市道", "県道", "国道"], seed)
+    road_width_pairs = [
+        ("4.0m", "5.5m"),
+        ("5.5m", "7.0m"),
+        ("6.0m", "8.5m"),
+        ("7.0m", "9.0m"),
+    ]
+    before_width, after_width = pick_option(road_width_pairs, seed, 1)
+    if "舗装" in work_type:
+        content_options = ["舗装補修", "路面切削", "表層打換え", "段差解消"]
+    elif "橋梁" in work_type:
+        content_options = ["橋梁補修", "高欄補修", "伸縮装置補修", "床版補修"]
     elif "道路復旧" in work_type:
-        road_type = "国道"
+        content_options = ["道路復旧", "路肩復旧", "路盤復旧", "法面復旧"]
+    else:
+        content_options = ["道路拡幅", "線形改良", "交差点改良", "路肩復旧"]
+    construction_content = pick_option(content_options, seed, 2)
+    pavement = pick_option(["As舗装", "表層", "基層", "路盤"], seed, 3)
+    sidewalk = pick_option(["両側新設", "片側新設", "既設利用", "なし"], seed, 4)
+    road_marking = pick_option(["施工予定", "施工済み", "一部施工予定"], seed, 5)
+    length = 120 + (seed * 23) % 880
 
     return f"""
-        <b>施工内容:</b> 道路拡幅, 線形改良, 交差点改良<br>
-        <b>施工延長:</b> 850m<br>
-        <b>道路幅員:</b> 6.0m → 8.5m<br>
+        <b>施工内容:</b> {construction_content}<br>
+        <b>施工延長:</b> {length}m<br>
+        <b>道路幅員:</b> {before_width} → {after_width}<br>
         <b>道路種別:</b> {road_type}<br>
-        <b>舗装構成:</b> As舗装 表層・基層・路盤<br>
-        <b>歩道:</b> 両側新設<br>
-        <b>区画線:</b> 施工予定<br>
+        <b>舗装構成:</b> {pavement}<br>
+        <b>歩道:</b> {sidewalk}<br>
+        <b>区画線:</b> {road_marking}<br>
     """
 
 
-def construction_details(work_type):
+def construction_details(props, work_type):
     if "下水道" in work_type or "排水" in work_type or "水道" in work_type:
-        return water_details(work_type)
-    return road_details(work_type)
+        return water_details(props, work_type)
+    return road_details(props, work_type)
 
 
 def popup_shell(title, badge_label, badge, side_id, body_html):
@@ -196,7 +229,7 @@ def make_construction_popup_html(props, actual, planned, work_type):
         <b>施工者:</b> {props.get("施工者","")}<br>
         <b>工事期間:</b> {start_date}～{end_date}<br><br>
 
-        {construction_details(work_type)}
+        {construction_details(props, work_type)}
 
         <br>
 
