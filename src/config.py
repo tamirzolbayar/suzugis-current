@@ -1,5 +1,6 @@
 DEFAULT_LOCATION = [37.436, 137.260]
 DEFAULT_ZOOM = 14
+DEFAULT_MAP_STYLE = "淡色地図"
 
 MAP_STYLES = {
     "標準地図": {
