@@ -51,6 +51,52 @@ class FeatureInfoBinder(MacroElement):
         )
 
 
+class MapViewPersistence(MacroElement):
+    def __init__(self, map_object, storage_key="suzugis_map_view"):
+        super().__init__()
+        self._name = "MapViewPersistence"
+        self.map_name = map_object.get_name()
+        self.storage_key = storage_key
+        self._template = Template(
+            """
+            {% macro script(this, kwargs) %}
+            (function() {
+                const map = {{ this.map_name }};
+                const storageKey = {{ this.storage_key|tojson }};
+
+                function restoreView() {
+                    try {
+                        const saved = JSON.parse(window.localStorage.getItem(storageKey));
+                        if (
+                            saved &&
+                            typeof saved.lat === "number" &&
+                            typeof saved.lng === "number" &&
+                            typeof saved.zoom === "number"
+                        ) {
+                            map.setView([saved.lat, saved.lng], saved.zoom, { animate: false });
+                        }
+                    } catch (error) {
+                        window.localStorage.removeItem(storageKey);
+                    }
+                }
+
+                function saveView() {
+                    const center = map.getCenter();
+                    window.localStorage.setItem(storageKey, JSON.stringify({
+                        lat: center.lat,
+                        lng: center.lng,
+                        zoom: map.getZoom()
+                    }));
+                }
+
+                restoreView();
+                map.on("moveend zoomend", saveView);
+            })();
+            {% endmacro %}
+            """
+        )
+
+
 def parse_progress(value):
     try:
         return int(str(value).replace("%", "").strip())
@@ -644,6 +690,7 @@ m = folium.Map(
     width="100%",
     height="850px",
 )
+m.add_child(MapViewPersistence(m))
 
 for map_style_name, map_style in MAP_STYLES.items():
     folium.TileLayer(
