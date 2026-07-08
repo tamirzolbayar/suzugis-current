@@ -705,15 +705,37 @@ for map_style_name, map_style in MAP_STYLES.items():
 if len(geojson_data["features"]) > 0:
     prepare_map_properties(geojson_data["features"])
 
-    restriction_layer = folium.GeoJson(
-        geojson_data,
-        name="規制区間",
-        style_function=lambda feature: style_by_restriction(
-            feature,
-            st.session_state.get("selected_restriction_id")
-        ),
-    ).add_to(m)
-    m.add_child(FeatureInfoBinder(restriction_layer))
+    layer_groups = []
+    restriction_features = [
+        feature
+        for feature in geojson_data["features"]
+        if not str(feature.get("properties", {}).get("工事種別", "")).strip()
+    ]
+    if restriction_features:
+        layer_groups.append(("通行止め・道路規制", restriction_features))
+
+    for work_type in WORK_TYPE_COLORS:
+        work_features = [
+            feature
+            for feature in geojson_data["features"]
+            if str(feature.get("properties", {}).get("工事種別", "")).strip() == work_type
+        ]
+        if work_features:
+            layer_groups.append((work_type, work_features))
+
+    for layer_name, layer_features in layer_groups:
+        layer = folium.GeoJson(
+            {
+                "type": "FeatureCollection",
+                "features": layer_features,
+            },
+            name=layer_name,
+            style_function=lambda feature: style_by_restriction(
+                feature,
+                st.session_state.get("selected_restriction_id")
+            ),
+        ).add_to(m)
+        m.add_child(FeatureInfoBinder(layer))
 
 else:
     st.warning("この条件に該当する規制区間はありません。")
