@@ -812,7 +812,7 @@ map_summary_html = f"""
     right: 58px;
     top: 330px;
     z-index: 9999;
-    min-width: 210px;
+    width: 254px;
     max-height: calc(100vh - 360px);
     overflow-y: auto;
     background: rgba(255,255,255,0.94);
@@ -851,6 +851,24 @@ map_summary_html = f"""
 </div>
 """
 m.get_root().html.add_child(folium.Element(map_summary_html))
+
+map_control_alignment_html = """
+<style>
+    .leaflet-top.leaflet-right {
+        right: 58px;
+    }
+
+    .leaflet-control-layers {
+        width: 254px;
+        box-sizing: border-box;
+    }
+
+    .leaflet-control-layers-expanded {
+        width: 254px;
+    }
+</style>
+"""
+m.get_root().html.add_child(folium.Element(map_control_alignment_html))
 
 map_settings_label_html = """
 <div style="
