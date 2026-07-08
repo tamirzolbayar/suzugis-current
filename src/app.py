@@ -445,6 +445,11 @@ st.markdown(
 
         iframe[title="streamlit_folium.st_folium"] {
             display: block;
+            width: 100% !important;
+        }
+
+        [data-testid="stIFrame"] {
+            width: 100% !important;
         }
 
         [data-testid="stSidebar"] {
@@ -809,10 +814,11 @@ if visible_complaints:
 map_summary_html = f"""
 <div style="
     position: fixed;
-    right: 58px;
+    right: 16px;
     top: 330px;
     z-index: 9999;
     width: 254px;
+    box-sizing: border-box;
     max-height: calc(100vh - 360px);
     overflow-y: auto;
     background: rgba(255,255,255,0.94);
@@ -855,7 +861,7 @@ m.get_root().html.add_child(folium.Element(map_summary_html))
 map_control_alignment_html = """
 <style>
     .leaflet-top.leaflet-right {
-        right: 58px;
+        right: 16px;
     }
 
     .leaflet-control-layers {
@@ -865,6 +871,7 @@ map_control_alignment_html = """
 
     .leaflet-control-layers-expanded {
         width: 254px;
+        box-sizing: border-box;
     }
 </style>
 """
@@ -874,7 +881,7 @@ map_settings_label_html = """
 <div style="
     position: fixed;
     top: 10px;
-    right: 58px;
+    right: 16px;
     z-index: 9999;
     background: rgba(255,255,255,0.94);
     border: 1px solid #d0d7de;
