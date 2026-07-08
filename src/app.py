@@ -406,6 +406,32 @@ st.markdown(
             max-width: 21rem;
         }
 
+        [data-testid="stSidebar"] > div:first-child {
+            padding-top: 2.2rem;
+        }
+
+        .sidebar-brand {
+            padding: 0.15rem 0 0.7rem 0;
+            border-bottom: 1px solid #d1d5db;
+            margin-bottom: 1rem;
+        }
+
+        .sidebar-brand-title {
+            font-size: 1.08rem;
+            line-height: 1.25;
+            font-weight: 800;
+            color: #111827;
+            letter-spacing: 0;
+            margin: 0;
+        }
+
+        .sidebar-brand-caption {
+            font-size: 0.76rem;
+            line-height: 1.3;
+            color: #6b7280;
+            margin-top: 0.22rem;
+        }
+
         [data-testid="stVerticalBlock"] {
             gap: 0.15rem;
         }
@@ -425,10 +451,15 @@ df, restriction_dict = load_excel(EXCEL_PATH)
 # Sidebar
 
 with st.sidebar:
-    st.header("珠洲市復旧道路管理マップ")
-    st.caption("復旧道路・交通規制 管理画面")
-
-    st.markdown("---")
+    st.markdown(
+        """
+        <div class="sidebar-brand">
+            <div class="sidebar-brand-title">珠洲市復旧道路管理マップ</div>
+            <div class="sidebar-brand-caption">復旧道路・交通規制 管理画面</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     st.subheader("📅 表示条件")
 
     default_period_start = pd.to_datetime("2026-07-15")
@@ -606,9 +637,19 @@ delayed_count = sum(
 )
 detour_routes = build_sample_detour_routes(all_features)
 
+map_state = st.session_state.get("map_state", {})
+last_center = map_state.get("center") if isinstance(map_state, dict) else None
+last_zoom = map_state.get("zoom") if isinstance(map_state, dict) else None
+map_location = (
+    [last_center["lat"], last_center["lng"]]
+    if isinstance(last_center, dict) and "lat" in last_center and "lng" in last_center
+    else DEFAULT_LOCATION
+)
+map_zoom = last_zoom if isinstance(last_zoom, (int, float)) else DEFAULT_ZOOM
+
 m = folium.Map(
-    location=DEFAULT_LOCATION,
-    zoom_start=DEFAULT_ZOOM,
+    location=map_location,
+    zoom_start=map_zoom,
     tiles=None,
     width="100%",
     height="850px",
@@ -628,7 +669,7 @@ if len(geojson_data["features"]) > 0:
     prepare_map_properties(geojson_data["features"])
 
     feature_bounds = get_feature_bounds(geojson_data["features"])
-    if feature_bounds is not None:
+    if feature_bounds is not None and "map_state" not in st.session_state:
         m.fit_bounds(feature_bounds, padding=(30, 30))
 
     restriction_layer = folium.GeoJson(
@@ -772,4 +813,12 @@ m.get_root().html.add_child(folium.Element(map_settings_label_html))
 
 folium.LayerControl(position="topright", collapsed=False).add_to(m)
 
-st_folium(m, width=1500, height=850)
+map_output = st_folium(m, width=1500, height=850)
+if isinstance(map_output, dict):
+    center = map_output.get("center")
+    zoom = map_output.get("zoom")
+    if center is not None or zoom is not None:
+        st.session_state["map_state"] = {
+            "center": center,
+            "zoom": zoom,
+        }
