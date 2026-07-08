@@ -681,6 +681,12 @@ delayed_count = sum(
     if parse_progress(feature.get("properties", {}).get("予定進捗率"))
     > parse_progress(feature.get("properties", {}).get("進捗率"))
 )
+construction_count = int((work_type_counts != "").sum())
+work_type_count_html = "".join(
+    f"<span>{work_type}</span><strong>{int((work_type_counts == work_type).sum())}</strong>"
+    for work_type in WORK_TYPE_COLORS
+    if int((work_type_counts == work_type).sum()) > 0
+)
 detour_routes = build_sample_detour_routes(all_features)
 
 m = folium.Map(
@@ -804,7 +810,7 @@ if visible_complaints:
 map_summary_html = f"""
 <div style="
     position: fixed;
-    right: 24px;
+    right: 58px;
     bottom: 44px;
     z-index: 9999;
     min-width: 210px;
@@ -821,10 +827,11 @@ map_summary_html = f"""
     <div style="font-weight:700; font-size:13px; margin-bottom:6px;">📊 表示集計</div>
     <div style="display:grid; grid-template-columns: 1fr auto; gap:2px 12px;">
         <span>表示中</span><strong>{len(filtered_features)}</strong>
+        <span>工事</span><strong>{construction_count}</strong>
+        {work_type_count_html}
         <span>通行止め</span><strong>{road_closure_count}</strong>
         <span>道路規制</span><strong>{road_restriction_count}</strong>
         <span>遅延</span><strong>{delayed_count}</strong>
-        <span>迂回路</span><strong>{len(detour_routes)}</strong>
         <span>苦情</span><strong>{len(visible_complaints)}</strong>
     </div>
     <div style="height:1px; background:#e5e7eb; margin:8px 0;"></div>
