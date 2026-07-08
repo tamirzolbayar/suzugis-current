@@ -2,6 +2,7 @@ import folium
 import json
 import pandas as pd
 from pathlib import Path
+from road_styles import RESTRICTION_RED, WORK_TYPE_COLORS, get_restriction_visual_type, get_work_type_color
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -17,6 +18,9 @@ df.columns = df.columns.str.strip()
 
 # 規制IDを文字列化して前後空白削除
 df["規制ID"] = df["規制ID"].astype(str).str.strip()
+if "工事種別" not in df.columns:
+    df["工事種別"] = ""
+df["工事種別"] = df["工事種別"].fillna("").astype(str).str.strip()
 
 TARGET_DATE = pd.to_datetime("2026-07-15")
 
@@ -24,9 +28,6 @@ restriction_dict = df.set_index("規制ID").to_dict("index")
 
 with open(GEOJSON_PATH, "r", encoding="utf-8") as f:
     geojson_data = json.load(f)
-
-# properties が空なら仮情報を入れる
-types = ["全面通行止め", "片側交互通行", "車線規制", "完了"]
 
 m = folium.Map(
     location=[37.436, 137.260],
@@ -59,25 +60,19 @@ for i, feature in enumerate(geojson_data["features"], start=1):
 geojson_data["features"] = filtered_features
         
 def style_by_restriction(feature):
-    restriction = str(feature["properties"].get("規制種別", "")).strip()
-    print("規制種別:", repr(restriction))
+    props = feature["properties"]
+    restriction = str(props.get("規制種別", "")).strip()
+    visual_type = get_restriction_visual_type(restriction)
+    color = get_work_type_color(props.get("工事種別", ""))
 
-    if restriction == "全面通行止め":
-        color = "red"
-    elif restriction == "片側交互通行":
-        color = "orange"
-    elif restriction == "車線規制":
-        color = "yellow"
-    elif restriction == "完了":
-        color = "blue"
-    else:
-        color = "gray"
-
-    return {
+    style = {
         "color": color,
         "weight": 6,
         "opacity": 0.9,
     }
+    if visual_type == "道路規制":
+        style["dashArray"] = "2, 9"
+    return style
 
 folium.TileLayer(
     tiles="https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",
@@ -165,13 +160,20 @@ legend_html = """
     line-height: 1.8;
 ">
 <b>凡例</b><br>
-<span style="color:red;">━</span> 全面通行止め<br>
-<span style="color:orange;">━</span> 片側交互通行<br>
-<span style="color:gold;">━</span> 車線規制<br>
-<span style="color:blue;">━</span> 完了<br>
+<span style="color:%s;">━</span> 通行止め<br>
+<span style="color:%s;">┄</span> 道路規制<br>
+%s
 <span style="color:gray;">━</span> 未分類
 </div>
-"""
+""" % (
+    RESTRICTION_RED,
+    RESTRICTION_RED,
+    "".join(
+        f'<span style="color:{color};">━</span> {work_type}<br>'
+        for work_type, color in WORK_TYPE_COLORS.items()
+        if work_type in set(df["工事種別"])
+    ),
+)
 
 m.get_root().html.add_child(folium.Element(legend_html))
 m.save(OUTPUT_PATH)

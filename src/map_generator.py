@@ -1,17 +1,11 @@
+from road_styles import get_restriction_visual_type, get_work_type_color
+
+
 def style_by_restriction(feature, selected_id=None):
     props = feature.get("properties", {})
     restriction = str(props.get("規制種別", "")).strip()
-
-    if "全面" in restriction:
-        color = "red"
-    elif "片側" in restriction or "片交" in restriction:
-        color = "orange"
-    elif "車線" in restriction:
-        color = "yellow"
-    elif "完了" in restriction:
-        color = "blue"
-    else:
-        color = "gray"
+    visual_type = get_restriction_visual_type(restriction)
+    color = get_work_type_color(props.get("工事種別", ""))
 
     if props.get("規制ID") == selected_id:
         return {
@@ -20,8 +14,11 @@ def style_by_restriction(feature, selected_id=None):
             "opacity": 1.0,
         }
 
-    return {
+    style = {
         "color": color,
         "weight": 6,
         "opacity": 0.9,
     }
+    if visual_type == "道路規制":
+        style["dashArray"] = "2, 9"
+    return style

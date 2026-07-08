@@ -19,6 +19,7 @@ from excel_loader import load_excel, save_excel
 from filters import apply_filters
 from config import DEFAULT_LOCATION, DEFAULT_ZOOM, MAP_STYLES
 from permit_documents import get_permit_pdf_path, make_permit_link_html
+from road_styles import RESTRICTION_RED, WORK_TYPE_COLORS, get_restriction_visual_type
 
 
 class FeatureInfoBinder(MacroElement):
@@ -446,10 +447,8 @@ with st.sidebar:
 
     st.subheader("🚧 規制種別")
 
-    show_full_closure = st.checkbox("全面通行止め", value=True)
-    show_alternate = st.checkbox("片側交互通行", value=True)
-    show_lane = st.checkbox("車線規制", value=True)
-    show_completed = st.checkbox("完了", value=True)
+    show_road_closure = st.checkbox("通行止め", value=True)
+    show_road_restriction = st.checkbox("道路規制", value=True)
     show_complaints = st.checkbox("苦情を表示", value=True)
     st.subheader("🏗 施工者")
 
@@ -497,6 +496,9 @@ with st.sidebar:
             <div style="font-size:13px; color:#666; margin-top:4px;">
                 {edit_row["施工者"]} / 進捗 {edit_row["進捗率"]}%
             </div>
+            <div style="font-size:13px; color:#666; margin-top:4px;">
+                工事種別: {edit_row.get("工事種別", "")}
+            </div>
             <div style="font-size:13px; margin-top:8px;">
                 <b>道路使用許可:</b> {permit_link_html}
             </div>
@@ -518,6 +520,16 @@ with st.sidebar:
             value=parse_progress(edit_row["進捗率"])
         )
 
+        work_type_options = [""] + list(WORK_TYPE_COLORS.keys())
+        current_work_type = str(edit_row.get("工事種別", "")).strip()
+        if current_work_type not in work_type_options:
+            work_type_options.append(current_work_type)
+        edit_work_type = st.selectbox(
+            "工事種別",
+            work_type_options,
+            index=work_type_options.index(current_work_type),
+        )
+
         edit_note = st.text_area(
             "備考",
             value=str(edit_row["備考"])
@@ -528,6 +540,7 @@ with st.sidebar:
         if submitted:
             df.loc[df["規制ID"] == edit_id, "施工者"] = edit_contractor
             df.loc[df["規制ID"] == edit_id, "進捗率"] = edit_progress
+            df.loc[df["規制ID"] == edit_id, "工事種別"] = edit_work_type
             df.loc[df["規制ID"] == edit_id, "備考"] = edit_note
 
             backup_path = save_excel(df, EXCEL_PATH)
@@ -550,10 +563,8 @@ geojson_data, filtered_features = apply_filters(
     restriction_dict=restriction_dict,
     period_start=period_start,
     period_end=period_end,
-    show_full_closure=show_full_closure,
-    show_alternate=show_alternate,
-    show_lane=show_lane,
-    show_completed=show_completed,
+    show_road_closure=show_road_closure,
+    show_road_restriction=show_road_restriction,
     contractor_filter=contractor_filter,
 )
 
@@ -573,13 +584,16 @@ else:
 restriction_counts = pd.Series(
     [feature.get("properties", {}).get("規制種別", "") for feature in filtered_features]
 )
+visual_restriction_counts = restriction_counts.astype(str).apply(get_restriction_visual_type)
 
-full_closure_count = int(restriction_counts.astype(str).str.contains("全面", na=False).sum())
-alternate_count = int(
-    restriction_counts.astype(str).str.contains("片側|片交", regex=True, na=False).sum()
+road_closure_count = int((visual_restriction_counts == "通行止め").sum())
+road_restriction_count = int((visual_restriction_counts == "道路規制").sum())
+work_type_counts = pd.Series(
+    [
+        str(feature.get("properties", {}).get("工事種別", "")).strip()
+        for feature in filtered_features
+    ]
 )
-lane_count = int(restriction_counts.astype(str).str.contains("車線", na=False).sum())
-completed_count = int(restriction_counts.astype(str).str.contains("完了", na=False).sum())
 delayed_count = sum(
     1
     for feature in filtered_features
@@ -707,10 +721,8 @@ map_summary_html = f"""
     <div style="font-weight:700; font-size:13px; margin-bottom:6px;">📊 表示集計</div>
     <div style="display:grid; grid-template-columns: 1fr auto; gap:2px 12px;">
         <span>表示中</span><strong>{len(filtered_features)}</strong>
-        <span>全面通行止め</span><strong>{full_closure_count}</strong>
-        <span>片側交互通行</span><strong>{alternate_count}</strong>
-        <span>車線規制</span><strong>{lane_count}</strong>
-        <span>完了</span><strong>{completed_count}</strong>
+        <span>通行止め</span><strong>{road_closure_count}</strong>
+        <span>道路規制</span><strong>{road_restriction_count}</strong>
         <span>遅延</span><strong>{delayed_count}</strong>
         <span>迂回路</span><strong>{len(detour_routes)}</strong>
         <span>苦情</span><strong>{len(visible_complaints)}</strong>
@@ -718,10 +730,13 @@ map_summary_html = f"""
     <div style="height:1px; background:#e5e7eb; margin:8px 0;"></div>
     <div style="font-weight:700; font-size:13px; margin-bottom:6px;">🧭 凡例</div>
     <div style="display:grid; gap:4px;">
-        <div><span style="display:inline-block;width:26px;height:5px;background:#d32f2f;margin-right:8px;vertical-align:middle;"></span>全面通行止め</div>
-        <div><span style="display:inline-block;width:26px;height:5px;background:#f57c00;margin-right:8px;vertical-align:middle;"></span>片側交互通行</div>
-        <div><span style="display:inline-block;width:26px;height:5px;background:#fbc02d;margin-right:8px;vertical-align:middle;"></span>車線規制</div>
-        <div><span style="display:inline-block;width:26px;height:5px;background:#1976d2;margin-right:8px;vertical-align:middle;"></span>完了</div>
+        <div><span style="display:inline-block;width:26px;height:5px;background:{RESTRICTION_RED};margin-right:8px;vertical-align:middle;"></span>通行止め</div>
+        <div><span style="display:inline-block;width:26px;border-top:5px dotted {RESTRICTION_RED};margin-right:8px;vertical-align:middle;"></span>道路規制</div>
+        {''.join(
+            f'<div><span style="display:inline-block;width:26px;height:5px;background:{color};margin-right:8px;vertical-align:middle;"></span>{work_type}</div>'
+            for work_type, color in WORK_TYPE_COLORS.items()
+            if int((work_type_counts == work_type).sum()) > 0
+        )}
         <div><span style="display:inline-block;width:26px;height:5px;background:#2e7d32;margin-right:8px;vertical-align:middle;"></span>迂回路</div>
         <div><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#d32f2f;color:white;text-align:center;line-height:18px;font-weight:800;margin-right:8px;vertical-align:middle;">!</span>苦情 未対応</div>
         <div><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#1b5e20;color:white;text-align:center;line-height:18px;font-weight:800;margin-right:8px;vertical-align:middle;">!</span>苦情 対応済み</div>

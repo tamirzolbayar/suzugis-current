@@ -1,15 +1,15 @@
 import pandas as pd
 
+from road_styles import get_restriction_visual_type
+
 
 def apply_filters(
     geojson_data,
     restriction_dict,
     period_start,
     period_end,
-    show_full_closure,
-    show_alternate,
-    show_lane,
-    show_completed,
+    show_road_closure,
+    show_road_restriction,
     contractor_filter,
 ):
     filtered_features = []
@@ -24,12 +24,11 @@ def apply_filters(
         props.update(restriction_dict[props["規制ID"]])
 
         restriction = str(props.get("規制種別", "")).strip()
+        visual_type = get_restriction_visual_type(restriction)
 
         is_allowed = (
-            ("全面" in restriction and show_full_closure)
-            or (("片側" in restriction or "片交" in restriction) and show_alternate)
-            or ("車線" in restriction and show_lane)
-            or ("完了" in restriction and show_completed)
+            (visual_type == "通行止め" and show_road_closure)
+            or (visual_type == "道路規制" and show_road_restriction)
         )
 
         if not is_allowed:

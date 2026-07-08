@@ -1,3 +1,5 @@
+from road_styles import RESTRICTION_RED, get_work_type_color
+
 ROAD_CENTERLINE_TYPES = {
     "1": "通常部",
     "2": "庭園路",
@@ -45,18 +47,9 @@ def make_popup_html(props, permit_link_html="未登録"):
     actual = int(str(props.get("進捗率", "0")).replace("%", ""))
     planned = int(str(props.get("予定進捗率", "0")).replace("%", ""))
 
-    restriction = str(props.get("規制種別", "")).strip()
-
-    if "全面" in restriction:
-        badge = "#d32f2f"
-    elif "片側" in restriction or "片交" in restriction:
-        badge = "#f57c00"
-    elif "車線" in restriction:
-        badge = "#fbc02d"
-    elif "完了" in restriction:
-        badge = "#1976d2"
-    else:
-        badge = "#777777"
+    badge = RESTRICTION_RED
+    work_type = str(props.get("工事種別", "")).strip()
+    work_badge = get_work_type_color(work_type, "#777777")
 
     return f"""
     <div style="
@@ -87,6 +80,20 @@ def make_popup_html(props, permit_link_html="未登録"):
         ">
             {props.get("規制種別","")}
         </span>
+
+        {f'''
+        <span style="
+            background:{work_badge};
+            color:white;
+            padding:4px 10px;
+            border-radius:20px;
+            font-size:12px;
+            font-weight:bold;
+            margin-left:4px;
+        ">
+            {work_type}
+        </span>
+        ''' if work_type else ""}
 
         <span style="float:right;color:#666;">
             {props.get("規制ID","")}

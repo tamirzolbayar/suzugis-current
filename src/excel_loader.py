@@ -7,8 +7,12 @@ def load_excel(excel_path):
     df = pd.read_excel(excel_path)
 
     df.columns = df.columns.str.strip()
+    if "工事種別" not in df.columns:
+        insert_at = df.columns.get_loc("工事名") + 1 if "工事名" in df.columns else len(df.columns)
+        df.insert(insert_at, "工事種別", "")
+
     for column in df.select_dtypes(include="object").columns:
-        df[column] = df[column].astype(str).str.strip()
+        df[column] = df[column].fillna("").astype(str).str.strip()
 
     df["開始日"] = pd.to_datetime(df["開始日"])
     df["終了日"] = pd.to_datetime(df["終了日"])
