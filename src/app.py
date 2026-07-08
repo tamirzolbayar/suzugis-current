@@ -870,7 +870,7 @@ folium.LayerControl(position="topright", collapsed=False).add_to(m)
 
 st_folium(
     m,
-    width=1500,
+    width=None,
     height=850,
     returned_objects=[],
     key="main_map",
