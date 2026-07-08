@@ -47,9 +47,9 @@ def make_popup_html(props, permit_link_html="未登録"):
     actual = int(str(props.get("進捗率", "0")).replace("%", ""))
     planned = int(str(props.get("予定進捗率", "0")).replace("%", ""))
 
-    badge = RESTRICTION_RED
     work_type = str(props.get("工事種別", "")).strip()
-    work_badge = get_work_type_color(work_type, "#777777")
+    badge_label = work_type or str(props.get("規制種別", "")).strip()
+    badge = get_work_type_color(work_type, RESTRICTION_RED) if work_type else RESTRICTION_RED
 
     return f"""
     <div style="
@@ -78,22 +78,8 @@ def make_popup_html(props, permit_link_html="未登録"):
             font-size:12px;
             font-weight:bold;
         ">
-            {props.get("規制種別","")}
+            {badge_label}
         </span>
-
-        {f'''
-        <span style="
-            background:{work_badge};
-            color:white;
-            padding:4px 10px;
-            border-radius:20px;
-            font-size:12px;
-            font-weight:bold;
-            margin-left:4px;
-        ">
-            {work_type}
-        </span>
-        ''' if work_type else ""}
 
         <span style="float:right;color:#666;">
             {props.get("規制ID","")}
