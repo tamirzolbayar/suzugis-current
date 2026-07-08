@@ -391,10 +391,14 @@ st.markdown(
     <style>
         .block-container {
             max-width: 100%;
-            padding-top: 0.15rem;
+            padding-top: 2.75rem;
             padding-left: 0;
             padding-right: 0;
             padding-bottom: 0;
+        }
+
+        iframe[title="streamlit_folium.st_folium"] {
+            display: block;
         }
 
         [data-testid="stSidebar"] {
