@@ -474,6 +474,16 @@ with st.sidebar:
         st.warning("開始日は終了日以前にしてください。")
         period_start, period_end = period_end, period_start
 
+    current_period_key = (
+        pd.to_datetime(period_start).strftime("%Y-%m-%d"),
+        pd.to_datetime(period_end).strftime("%Y-%m-%d"),
+    )
+    previous_period_key = st.session_state.get("map_period_key")
+    should_fit_map_to_date = (
+        previous_period_key is not None
+        and previous_period_key != current_period_key
+    )
+
     selected_districts = st.multiselect(
         "重点地区",
         PRIORITY_DISTRICTS,
@@ -642,10 +652,17 @@ last_center = map_state.get("center") if isinstance(map_state, dict) else None
 last_zoom = map_state.get("zoom") if isinstance(map_state, dict) else None
 map_location = (
     [last_center["lat"], last_center["lng"]]
-    if isinstance(last_center, dict) and "lat" in last_center and "lng" in last_center
+    if not should_fit_map_to_date
+    and isinstance(last_center, dict)
+    and "lat" in last_center
+    and "lng" in last_center
     else DEFAULT_LOCATION
 )
-map_zoom = last_zoom if isinstance(last_zoom, (int, float)) else DEFAULT_ZOOM
+map_zoom = (
+    last_zoom
+    if not should_fit_map_to_date and isinstance(last_zoom, (int, float))
+    else DEFAULT_ZOOM
+)
 
 m = folium.Map(
     location=map_location,
@@ -669,7 +686,7 @@ if len(geojson_data["features"]) > 0:
     prepare_map_properties(geojson_data["features"])
 
     feature_bounds = get_feature_bounds(geojson_data["features"])
-    if feature_bounds is not None and "map_state" not in st.session_state:
+    if feature_bounds is not None and should_fit_map_to_date:
         m.fit_bounds(feature_bounds, padding=(30, 30))
 
     restriction_layer = folium.GeoJson(
@@ -822,3 +839,4 @@ if isinstance(map_output, dict):
             "center": center,
             "zoom": zoom,
         }
+st.session_state["map_period_key"] = current_period_key
