@@ -17,7 +17,7 @@ from popup import (
 from map_generator import style_by_restriction
 from excel_loader import load_excel, save_excel
 from filters import apply_filters
-from config import DEFAULT_LOCATION, DEFAULT_MAP_STYLE, DEFAULT_ZOOM, MAP_STYLES
+from config import DEFAULT_LOCATION, DEFAULT_ZOOM, MAP_STYLES
 from permit_documents import get_permit_pdf_path, make_permit_link_html
 from road_styles import RESTRICTION_RED, WORK_TYPE_COLORS, get_restriction_visual_type
 
@@ -46,6 +46,52 @@ class FeatureInfoBinder(MacroElement):
                     });
                 }
             });
+            {% endmacro %}
+            """
+        )
+
+
+class MapViewPersistence(MacroElement):
+    def __init__(self, map_object, storage_key="suzugis_map_view"):
+        super().__init__()
+        self._name = "MapViewPersistence"
+        self.map_name = map_object.get_name()
+        self.storage_key = storage_key
+        self._template = Template(
+            """
+            {% macro script(this, kwargs) %}
+            (function() {
+                const map = {{ this.map_name }};
+                const storageKey = {{ this.storage_key|tojson }};
+
+                function restoreView() {
+                    try {
+                        const saved = JSON.parse(window.localStorage.getItem(storageKey));
+                        if (
+                            saved &&
+                            typeof saved.lat === "number" &&
+                            typeof saved.lng === "number" &&
+                            typeof saved.zoom === "number"
+                        ) {
+                            map.setView([saved.lat, saved.lng], saved.zoom, { animate: false });
+                        }
+                    } catch (error) {
+                        window.localStorage.removeItem(storageKey);
+                    }
+                }
+
+                function saveView() {
+                    const center = map.getCenter();
+                    window.localStorage.setItem(storageKey, JSON.stringify({
+                        lat: center.lat,
+                        lng: center.lng,
+                        zoom: map.getZoom()
+                    }));
+                }
+
+                restoreView();
+                map.on("moveend zoomend", saveView);
+            })();
             {% endmacro %}
             """
         )
@@ -644,6 +690,7 @@ m = folium.Map(
     width="100%",
     height="850px",
 )
+m.add_child(MapViewPersistence(m))
 
 for map_style_name, map_style in MAP_STYLES.items():
     folium.TileLayer(
@@ -652,7 +699,7 @@ for map_style_name, map_style in MAP_STYLES.items():
         name=map_style_name,
         overlay=False,
         control=True,
-        show=map_style_name == DEFAULT_MAP_STYLE,
+        show=map_style_name == "淡色地図",
     ).add_to(m)
 
 if len(geojson_data["features"]) > 0:
@@ -660,7 +707,7 @@ if len(geojson_data["features"]) > 0:
 
     restriction_layer = folium.GeoJson(
         geojson_data,
-        name="規制・工事区間",
+        name="規制区間",
         style_function=lambda feature: style_by_restriction(
             feature,
             st.session_state.get("selected_restriction_id")
@@ -777,11 +824,32 @@ map_summary_html = f"""
 """
 m.get_root().html.add_child(folium.Element(map_summary_html))
 
-folium.LayerControl(position="topright", collapsed=True).add_to(m)
+map_settings_label_html = """
+<div style="
+    position: fixed;
+    top: 10px;
+    right: 58px;
+    z-index: 9999;
+    background: rgba(255,255,255,0.94);
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: #1f2937;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+">
+    地図設定
+</div>
+"""
+m.get_root().html.add_child(folium.Element(map_settings_label_html))
+
+folium.LayerControl(position="topright", collapsed=False).add_to(m)
 
 st_folium(
     m,
     width=1500,
     height=850,
+    returned_objects=[],
     key="main_map",
 )
