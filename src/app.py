@@ -637,21 +637,9 @@ delayed_count = sum(
 )
 detour_routes = build_sample_detour_routes(all_features)
 
-map_state = st.session_state.get("map_state", {})
-last_center = map_state.get("center") if isinstance(map_state, dict) else None
-last_zoom = map_state.get("zoom") if isinstance(map_state, dict) else None
-map_location = (
-    [last_center["lat"], last_center["lng"]]
-    if isinstance(last_center, dict)
-    and "lat" in last_center
-    and "lng" in last_center
-    else DEFAULT_LOCATION
-)
-map_zoom = last_zoom if isinstance(last_zoom, (int, float)) else DEFAULT_ZOOM
-
 m = folium.Map(
-    location=map_location,
-    zoom_start=map_zoom,
+    location=DEFAULT_LOCATION,
+    zoom_start=DEFAULT_ZOOM,
     tiles=None,
     width="100%",
     height="850px",
@@ -811,12 +799,10 @@ m.get_root().html.add_child(folium.Element(map_settings_label_html))
 
 folium.LayerControl(position="topright", collapsed=False).add_to(m)
 
-map_output = st_folium(m, width=1500, height=850)
-if isinstance(map_output, dict):
-    center = map_output.get("center")
-    zoom = map_output.get("zoom")
-    if center is not None or zoom is not None:
-        st.session_state["map_state"] = {
-            "center": center,
-            "zoom": zoom,
-        }
+st_folium(
+    m,
+    width=1500,
+    height=850,
+    returned_objects=[],
+    key="main_map",
+)
