@@ -705,15 +705,42 @@ for map_style_name, map_style in MAP_STYLES.items():
 if len(geojson_data["features"]) > 0:
     prepare_map_properties(geojson_data["features"])
 
-    restriction_layer = folium.GeoJson(
-        geojson_data,
-        name="規制区間",
-        style_function=lambda feature: style_by_restriction(
-            feature,
-            st.session_state.get("selected_restriction_id")
-        ),
-    ).add_to(m)
-    m.add_child(FeatureInfoBinder(restriction_layer))
+    restriction_only_features = [
+        feature
+        for feature in geojson_data["features"]
+        if not str(feature.get("properties", {}).get("工事種別", "")).strip()
+    ]
+    work_type_features = {
+        work_type: [
+            feature
+            for feature in geojson_data["features"]
+            if str(feature.get("properties", {}).get("工事種別", "")).strip() == work_type
+        ]
+        for work_type in WORK_TYPE_COLORS
+    }
+
+    map_feature_layers = []
+    if restriction_only_features:
+        map_feature_layers.append(("通行止め・道路規制", restriction_only_features))
+
+    for work_type, features in work_type_features.items():
+        if features:
+            map_feature_layers.append((work_type, features))
+
+    for layer_name, features in map_feature_layers:
+        layer_data = {
+            "type": "FeatureCollection",
+            "features": features,
+        }
+        feature_layer = folium.GeoJson(
+            layer_data,
+            name=layer_name,
+            style_function=lambda feature: style_by_restriction(
+                feature,
+                st.session_state.get("selected_restriction_id")
+            ),
+        ).add_to(m)
+        m.add_child(FeatureInfoBinder(feature_layer))
 
 else:
     st.warning("この条件に該当する規制区間はありません。")
@@ -824,27 +851,7 @@ map_summary_html = f"""
 """
 m.get_root().html.add_child(folium.Element(map_summary_html))
 
-map_settings_label_html = """
-<div style="
-    position: fixed;
-    top: 10px;
-    right: 58px;
-    z-index: 9999;
-    background: rgba(255,255,255,0.94);
-    border: 1px solid #d0d7de;
-    border-radius: 6px;
-    padding: 4px 8px;
-    color: #1f2937;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-">
-    地図設定
-</div>
-"""
-m.get_root().html.add_child(folium.Element(map_settings_label_html))
-
-folium.LayerControl(position="topright", collapsed=False).add_to(m)
+folium.LayerControl(position="topright", collapsed=True).add_to(m)
 
 st_folium(
     m,
