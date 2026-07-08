@@ -62,15 +62,16 @@ geojson_data["features"] = filtered_features
 def style_by_restriction(feature):
     props = feature["properties"]
     restriction = str(props.get("規制種別", "")).strip()
+    work_type = str(props.get("工事種別", "")).strip()
     visual_type = get_restriction_visual_type(restriction)
-    color = get_work_type_color(props.get("工事種別", ""))
+    color = get_work_type_color(work_type)
 
     style = {
         "color": color,
         "weight": 6,
         "opacity": 0.9,
     }
-    if visual_type == "道路規制":
+    if not work_type and visual_type == "道路規制":
         style["dashArray"] = "2, 9"
     return style
 
