@@ -754,12 +754,28 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("➕ 新規作成")
 
-    with st.form("create_map_item_form", clear_on_submit=True):
-        create_kind = st.radio(
-            "作成タイプ",
-            ["工事", "規制"],
-            horizontal=True,
+    create_kind = st.radio(
+        "作成タイプ",
+        ["工事", "規制"],
+        horizontal=True,
+        key="create_kind",
+    )
+    if create_kind == "工事":
+        create_work_type = st.selectbox(
+            "項目種別",
+            list(WORK_TYPE_COLORS.keys()),
+            key="create_work_type",
         )
+        create_restriction_type = "道路規制"
+    else:
+        create_work_type = ""
+        create_restriction_type = st.selectbox(
+            "項目種別",
+            ["通行止め", "道路規制"],
+            key="create_restriction_type",
+        )
+
+    with st.form("create_map_item_form", clear_on_submit=True):
         create_district = st.selectbox("重点地区", PRIORITY_DISTRICTS)
         create_name = st.text_input(
             "工事名 / 規制名",
@@ -768,8 +784,6 @@ with st.sidebar:
         )
 
         if create_kind == "工事":
-            create_work_type = st.selectbox("工事種別", list(WORK_TYPE_COLORS.keys()))
-            create_restriction_type = "道路規制"
             create_extra_details = {}
 
             if "下水道" in create_work_type or "水道" in create_work_type:
@@ -875,8 +889,6 @@ with st.sidebar:
                     ["施工予定", "施工済み", "一部施工予定"],
                 )
         else:
-            create_work_type = ""
-            create_restriction_type = st.selectbox("規制種別", ["通行止め", "道路規制"])
             restriction_cols = st.columns(2)
             with restriction_cols[0]:
                 create_extra_details = {
