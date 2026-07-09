@@ -638,11 +638,6 @@ with st.sidebar:
         default=PRIORITY_DISTRICTS,
     )
 
-    st.subheader("🚧 規制種別")
-
-    show_road_closure = st.checkbox("通行止め", value=True)
-    show_road_restriction = st.checkbox("道路規制", value=True)
-    show_complaints = st.checkbox("苦情を表示", value=True)
     st.subheader("🏗 施工者")
 
     contractors = ["すべて"] + sorted(df["施工者"].dropna().unique().tolist())
@@ -664,8 +659,8 @@ geojson_data, filtered_features = apply_filters(
     restriction_dict=restriction_dict,
     period_start=period_start,
     period_end=period_end,
-    show_road_closure=show_road_closure,
-    show_road_restriction=show_road_restriction,
+    show_road_closure=True,
+    show_road_restriction=True,
     contractor_filter=contractor_filter,
 )
 
@@ -793,7 +788,7 @@ if detour_routes:
 visible_complaints = [
     complaint
     for complaint in COMPLAINTS
-    if show_complaints and complaint["district"] in selected_districts
+    if complaint["district"] in selected_districts
 ]
 
 if visible_complaints:
