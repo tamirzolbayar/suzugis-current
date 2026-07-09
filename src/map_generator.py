@@ -10,8 +10,8 @@ def style_by_restriction(feature, selected_id=None):
 
     if props.get("規制ID") == selected_id:
         return {
-            "color": "black",
-            "weight": 11,
+            "color": color,
+            "weight": 10,
             "opacity": 1.0,
         }
 

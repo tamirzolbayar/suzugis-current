@@ -1,4 +1,5 @@
 import json
+import base64
 from pathlib import Path
 
 import folium
@@ -224,6 +225,8 @@ def prepare_map_properties(features):
 BASE_DIR = Path(__file__).resolve().parent.parent
 GEOJSON_PATH = BASE_DIR / "data" / "geojson" / "suzu_sample.geojson"
 EXCEL_PATH = BASE_DIR / "data" / "excel" / "restriction_list.xlsx"
+LOGO_PATH = BASE_DIR / "assets" / "suzugis-logo.png"
+LOGO_DATA_URI = "data:image/png;base64," + base64.b64encode(LOGO_PATH.read_bytes()).decode("ascii")
 DETOUR_COLOR = "#2e7d32"
 COMPLAINT_STATUS_COLORS = {
     "未対応": "#d32f2f",
@@ -469,25 +472,17 @@ st.markdown(
         }
 
         .sidebar-brand {
-            padding: 0.15rem 0 0.7rem 0;
+            padding: 0 0 0.9rem 0;
             border-bottom: 1px solid #d1d5db;
             margin-bottom: 1rem;
         }
 
-        .sidebar-brand-title {
-            font-size: 1.08rem;
-            line-height: 1.25;
-            font-weight: 800;
-            color: #111827;
-            letter-spacing: 0;
-            margin: 0;
-        }
-
-        .sidebar-brand-caption {
-            font-size: 0.76rem;
-            line-height: 1.3;
-            color: #6b7280;
-            margin-top: 0.22rem;
+        .sidebar-brand img {
+            display: block;
+            width: 100%;
+            max-width: 17.8rem;
+            height: auto;
+            margin: 0 auto;
         }
 
         [data-testid="stVerticalBlock"] {
@@ -504,6 +499,7 @@ st.markdown(
 
 st.markdown('<div class="main-title">珠洲市復旧道路管理マップ</div>', unsafe_allow_html=True)
 df, restriction_dict = load_excel(EXCEL_PATH)
+item_ids = df["規制ID"].tolist()
 
 
 @st.dialog("項目を編集")
@@ -609,10 +605,9 @@ def show_item_edit_dialog(item_id):
 
 with st.sidebar:
     st.markdown(
-        """
+        f"""
         <div class="sidebar-brand">
-            <div class="sidebar-brand-title">珠洲市復旧道路管理マップ</div>
-            <div class="sidebar-brand-caption">復旧道路・交通規制 管理画面</div>
+            <img src="{LOGO_DATA_URI}" alt="珠洲市復旧道路管理マップ">
         </div>
         """,
         unsafe_allow_html=True,
@@ -650,66 +645,6 @@ with st.sidebar:
         "施工者を選択",
         contractors
     )
-
-    st.markdown("---")
-    st.subheader("✏️ 選択中の項目")
-
-    item_ids = df["規制ID"].tolist()
-    selected_id = st.session_state.get(
-        "selected_restriction_id",
-        item_ids[0]
-    )
-    if selected_id not in item_ids:
-        selected_id = item_ids[0]
-
-    selected_id = st.selectbox(
-        "編集するID",
-        item_ids,
-        index=item_ids.index(selected_id),
-    )
-    st.session_state["selected_restriction_id"] = selected_id
-
-    edit_id = selected_id
-    edit_row = df[df["規制ID"] == edit_id].iloc[0]
-    edit_work_type_value = str(edit_row.get("工事種別", "")).strip()
-    edit_item_type = "工事" if edit_work_type_value else "規制"
-    permit_link_html = make_permit_link_html(BASE_DIR, edit_id)
-    permit_row_html = (
-        f"""
-            <div style="font-size:13px; margin-top:8px;">
-                <b>道路使用許可:</b> {permit_link_html}
-            </div>
-        """
-        if not edit_work_type_value
-        else ""
-    )
-
-    st.markdown(
-        f"""
-        <div style="
-            background-color:#f7f9fc;
-            padding:12px;
-            border-radius:10px;
-            border:1px solid #d0d7de;
-            margin-bottom:12px;
-        ">
-            <div style="font-size:14px; color:#666;">現在選択中の{edit_item_type}</div>
-            <div style="font-size:22px; font-weight:bold;">🚧 {edit_id}</div>
-            <div style="font-size:14px; margin-top:4px;">{edit_row["工事名"]}</div>
-            <div style="font-size:13px; color:#666; margin-top:4px;">
-                {edit_row["施工者"]} / 進捗 {edit_row["進捗率"]}%
-            </div>
-            <div style="font-size:13px; color:#666; margin-top:4px;">
-                種別: {edit_work_type_value or edit_row.get("規制種別", "")}
-            </div>
-            {permit_row_html}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    if st.button("選択項目を編集", type="primary", use_container_width=True):
-        st.session_state["edit_dialog_id"] = edit_id
 
 
 # GeoJSON load
