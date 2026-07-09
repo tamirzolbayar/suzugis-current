@@ -546,26 +546,37 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    st.subheader("✏️ 選択中の規制")
+    st.subheader("✏️ 選択中の項目")
 
-    restriction_ids = df["規制ID"].tolist()
+    item_ids = df["規制ID"].tolist()
     selected_id = st.session_state.get(
         "selected_restriction_id",
-        restriction_ids[0]
+        item_ids[0]
     )
-    if selected_id not in restriction_ids:
-        selected_id = restriction_ids[0]
+    if selected_id not in item_ids:
+        selected_id = item_ids[0]
 
     selected_id = st.selectbox(
-        "編集する規制ID",
-        restriction_ids,
-        index=restriction_ids.index(selected_id),
+        "編集するID",
+        item_ids,
+        index=item_ids.index(selected_id),
     )
     st.session_state["selected_restriction_id"] = selected_id
 
     edit_id = selected_id
     edit_row = df[df["規制ID"] == edit_id].iloc[0]
+    edit_work_type_value = str(edit_row.get("工事種別", "")).strip()
+    edit_item_type = "工事" if edit_work_type_value else "規制"
     permit_link_html = make_permit_link_html(BASE_DIR, edit_id)
+    permit_row_html = (
+        f"""
+            <div style="font-size:13px; margin-top:8px;">
+                <b>道路使用許可:</b> {permit_link_html}
+            </div>
+        """
+        if not edit_work_type_value
+        else ""
+    )
 
     st.markdown(
         f"""
@@ -576,18 +587,16 @@ with st.sidebar:
             border:1px solid #d0d7de;
             margin-bottom:12px;
         ">
-            <div style="font-size:14px; color:#666;">現在選択中</div>
+            <div style="font-size:14px; color:#666;">現在選択中の{edit_item_type}</div>
             <div style="font-size:22px; font-weight:bold;">🚧 {edit_id}</div>
             <div style="font-size:14px; margin-top:4px;">{edit_row["工事名"]}</div>
             <div style="font-size:13px; color:#666; margin-top:4px;">
                 {edit_row["施工者"]} / 進捗 {edit_row["進捗率"]}%
             </div>
             <div style="font-size:13px; color:#666; margin-top:4px;">
-                工事種別: {edit_row.get("工事種別", "")}
+                種別: {edit_work_type_value or edit_row.get("規制種別", "")}
             </div>
-            <div style="font-size:13px; margin-top:8px;">
-                <b>道路使用許可:</b> {permit_link_html}
-            </div>
+            {permit_row_html}
         </div>
         """,
         unsafe_allow_html=True
@@ -899,10 +908,18 @@ m.get_root().html.add_child(folium.Element(map_settings_label_html))
 
 folium.LayerControl(position="topright", collapsed=False).add_to(m)
 
-st_folium(
+map_output = st_folium(
     m,
     width=None,
     height=850,
-    returned_objects=[],
+    returned_objects=["last_active_drawing"],
     key="main_map",
 )
+
+if isinstance(map_output, dict):
+    clicked_feature = map_output.get("last_active_drawing")
+    clicked_props = clicked_feature.get("properties", {}) if isinstance(clicked_feature, dict) else {}
+    clicked_id = str(clicked_props.get("規制ID", "")).strip()
+    if clicked_id and clicked_id in item_ids and clicked_id != st.session_state.get("selected_restriction_id"):
+        st.session_state["selected_restriction_id"] = clicked_id
+        st.rerun()
