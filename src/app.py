@@ -548,7 +548,7 @@ st.markdown(
     <style>
         .block-container {
             max-width: 100%;
-            padding-top: 2.75rem;
+            padding-top: 0.25rem;
             padding-left: 0;
             padding-right: 0;
             padding-bottom: 0;
@@ -569,7 +569,7 @@ st.markdown(
         }
 
         [data-testid="stSidebar"] > div:first-child {
-            padding-top: 2.2rem;
+            padding-top: 0.55rem;
         }
 
         .sidebar-brand {
