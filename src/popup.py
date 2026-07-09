@@ -114,6 +114,30 @@ def pick_option(options, seed, offset=0):
     return options[(seed + offset) % len(options)]
 
 
+def detail_value(props, key, fallback):
+    value = props.get(key, "")
+    if value is None:
+        return fallback
+    if isinstance(value, float) and value != value:
+        return fallback
+    value = str(value).strip()
+    return value if value and value.lower() != "nan" else fallback
+
+
+def restriction_details(props):
+    rows = []
+    for label, key in [
+        ("規制理由", "規制理由"),
+        ("規制時間帯", "規制時間帯"),
+        ("交通誘導員", "交通誘導員"),
+        ("許可状況", "許可状況"),
+    ]:
+        value = detail_value(props, key, "")
+        if value:
+            rows.append(f"<b>{label}:</b> {value}<br>")
+    return "".join(rows)
+
+
 def water_details(props, work_type):
     seed = record_seed(props)
     water_kind = "上水道"
@@ -122,8 +146,9 @@ def water_details(props, work_type):
     elif "排水" in work_type:
         water_kind = "排水"
 
-    pipe_diameter = pick_option(["φ100", "φ150", "φ200", "φ250", "φ300"], seed)
-    length = 80 + (seed * 17) % 260
+    water_kind = detail_value(props, "管種", water_kind)
+    pipe_diameter = detail_value(props, "管径", pick_option(["φ100", "φ150", "φ200", "φ250", "φ300"], seed))
+    length = detail_value(props, "施工延長", 80 + (seed * 17) % 260)
 
     return f"""
         <b>工事種別:</b> {water_kind}<br>
@@ -134,13 +159,13 @@ def water_details(props, work_type):
 
 def drainage_details(props):
     seed = record_seed(props)
-    drainage_method = pick_option(["側溝", "暗渠", "開水路", "集水桝連結"], seed)
-    length = 60 + (seed * 19) % 260
-    gutter_size = pick_option(["300×300", "400×400", "500×500", "600×600"], seed, 1)
-    catch_basins = 2 + (seed * 3) % 14
-    crossing_pipes = 1 + (seed * 2) % 7
-    drainage_direction = pick_option(["海側", "山側", "既設水路側", "幹線側溝側"], seed, 2)
-    capacity_status = pick_option(["改善予定", "改善中", "暫定改善済み", "能力確認中"], seed, 3)
+    drainage_method = detail_value(props, "排水方式", pick_option(["側溝", "暗渠", "開水路", "集水桝連結"], seed))
+    length = detail_value(props, "施工延長", 60 + (seed * 19) % 260)
+    gutter_size = detail_value(props, "側溝サイズ", pick_option(["300×300", "400×400", "500×500", "600×600"], seed, 1))
+    catch_basins = detail_value(props, "集水桝", 2 + (seed * 3) % 14)
+    crossing_pipes = detail_value(props, "横断管", 1 + (seed * 2) % 7)
+    drainage_direction = detail_value(props, "排水方向", pick_option(["海側", "山側", "既設水路側", "幹線側溝側"], seed, 2))
+    capacity_status = detail_value(props, "排水能力", pick_option(["改善予定", "改善中", "暫定改善済み", "能力確認中"], seed, 3))
 
     return f"""
         <b>排水方式:</b> {drainage_method}<br>
@@ -155,7 +180,7 @@ def drainage_details(props):
 
 def road_details(props, work_type):
     seed = record_seed(props)
-    road_type = pick_option(["市道", "県道", "国道"], seed)
+    road_type = detail_value(props, "道路種別", pick_option(["市道", "県道", "国道"], seed))
     road_width_pairs = [
         ("4.0m", "5.5m"),
         ("5.5m", "7.0m"),
@@ -163,6 +188,8 @@ def road_details(props, work_type):
         ("7.0m", "9.0m"),
     ]
     before_width, after_width = pick_option(road_width_pairs, seed, 1)
+    before_width = detail_value(props, "道路幅員_前", before_width)
+    after_width = detail_value(props, "道路幅員_後", after_width)
     if "舗装" in work_type:
         content_options = ["舗装補修", "路面切削", "表層打換え", "段差解消"]
     elif "橋梁" in work_type:
@@ -171,11 +198,11 @@ def road_details(props, work_type):
         content_options = ["道路復旧", "路肩復旧", "路盤復旧", "法面復旧"]
     else:
         content_options = ["道路拡幅", "線形改良", "交差点改良", "路肩復旧"]
-    construction_content = pick_option(content_options, seed, 2)
-    pavement = pick_option(["As舗装", "表層", "基層", "路盤"], seed, 3)
-    sidewalk = pick_option(["両側新設", "片側新設", "既設利用", "なし"], seed, 4)
-    road_marking = pick_option(["施工予定", "施工済み", "一部施工予定"], seed, 5)
-    length = 120 + (seed * 23) % 880
+    construction_content = detail_value(props, "施工内容", pick_option(content_options, seed, 2))
+    pavement = detail_value(props, "舗装構成", pick_option(["As舗装", "表層", "基層", "路盤"], seed, 3))
+    sidewalk = detail_value(props, "歩道", pick_option(["両側新設", "片側新設", "既設利用", "なし"], seed, 4))
+    road_marking = detail_value(props, "区画線", pick_option(["施工予定", "施工済み", "一部施工予定"], seed, 5))
+    length = detail_value(props, "施工延長", 120 + (seed * 23) % 880)
 
     return f"""
         <b>施工内容:</b> {construction_content}<br>
@@ -294,6 +321,8 @@ def make_restriction_popup_html(props, permit_link_html, actual, planned):
         <b>期間:</b> {props.get("開始日","")} ～ {props.get("終了日","")}<br>
         <b>施工者:</b> {props.get("施工者","")}<br>
         <b>道路使用許可:</b> {permit_link_html}<br><br>
+
+        {restriction_details(props)}
 
         <b>道路中心線:</b> {decode_code(ROAD_CENTERLINE_TYPES, props.get("N13_002", ""))}<br>
         <b>道路分類:</b> {decode_code(ROAD_CATEGORY_TYPES, props.get("N13_003", ""))}<br>

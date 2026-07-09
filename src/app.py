@@ -167,6 +167,7 @@ def create_map_item(
     contractor,
     progress,
     note,
+    extra_details=None,
 ):
     existing_ids = df["規制ID"].astype(str).tolist()
     new_id = next_record_id(existing_ids, "C" if item_kind == "工事" else "R")
@@ -181,6 +182,8 @@ def create_map_item(
         "進捗率": progress,
         "備考": note,
     }
+    if extra_details:
+        new_row.update(extra_details)
 
     updated_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     save_excel(updated_df, EXCEL_PATH)
@@ -767,9 +770,134 @@ with st.sidebar:
         if create_kind == "工事":
             create_work_type = st.selectbox("工事種別", list(WORK_TYPE_COLORS.keys()))
             create_restriction_type = "道路規制"
+            create_extra_details = {}
+
+            if "下水道" in create_work_type or "水道" in create_work_type:
+                water_cols = st.columns(2)
+                with water_cols[0]:
+                    create_extra_details["管種"] = st.selectbox(
+                        "管種",
+                        ["下水道", "上水道"],
+                        index=0 if "下水道" in create_work_type else 1,
+                    )
+                    create_extra_details["管径"] = st.selectbox(
+                        "管径",
+                        ["φ100", "φ150", "φ200", "φ250", "φ300"],
+                    )
+                with water_cols[1]:
+                    create_extra_details["施工延長"] = st.number_input(
+                        "施工延長(m)",
+                        min_value=1,
+                        max_value=3000,
+                        value=160,
+                        step=5,
+                    )
+
+            elif "排水" in create_work_type:
+                drainage_cols = st.columns(2)
+                with drainage_cols[0]:
+                    create_extra_details["排水方式"] = st.selectbox(
+                        "排水方式",
+                        ["側溝", "暗渠", "開水路", "集水桝連結"],
+                    )
+                    create_extra_details["施工延長"] = st.number_input(
+                        "施工延長(m)",
+                        min_value=1,
+                        max_value=3000,
+                        value=160,
+                        step=5,
+                    )
+                    create_extra_details["側溝サイズ"] = st.selectbox(
+                        "側溝サイズ",
+                        ["300×300", "400×400", "500×500", "600×600"],
+                    )
+                with drainage_cols[1]:
+                    create_extra_details["集水桝"] = st.number_input(
+                        "集水桝(基)",
+                        min_value=0,
+                        max_value=100,
+                        value=8,
+                        step=1,
+                    )
+                    create_extra_details["横断管"] = st.number_input(
+                        "横断管(箇所)",
+                        min_value=0,
+                        max_value=100,
+                        value=4,
+                        step=1,
+                    )
+                    create_extra_details["排水方向"] = st.selectbox(
+                        "排水方向",
+                        ["海側", "山側", "既設水路側", "幹線側溝側"],
+                    )
+                create_extra_details["排水能力"] = st.selectbox(
+                    "排水能力",
+                    ["改善予定", "改善中", "暫定改善済み", "能力確認中"],
+                )
+
+            else:
+                road_cols = st.columns(2)
+                with road_cols[0]:
+                    create_extra_details["施工内容"] = st.selectbox(
+                        "施工内容",
+                        ["道路拡幅", "線形改良", "交差点改良", "舗装補修", "橋梁補修", "道路復旧"],
+                    )
+                    create_extra_details["施工延長"] = st.number_input(
+                        "施工延長(m)",
+                        min_value=1,
+                        max_value=5000,
+                        value=250,
+                        step=10,
+                    )
+                    create_extra_details["道路種別"] = st.selectbox(
+                        "道路種別",
+                        ["市道", "県道", "国道"],
+                    )
+                with road_cols[1]:
+                    create_extra_details["道路幅員_前"] = st.selectbox(
+                        "道路幅員(前)",
+                        ["4.0m", "5.5m", "6.0m", "7.0m"],
+                    )
+                    create_extra_details["道路幅員_後"] = st.selectbox(
+                        "道路幅員(後)",
+                        ["5.5m", "7.0m", "8.5m", "9.0m"],
+                    )
+                    create_extra_details["舗装構成"] = st.selectbox(
+                        "舗装構成",
+                        ["As舗装", "表層", "基層", "路盤"],
+                    )
+                create_extra_details["歩道"] = st.selectbox(
+                    "歩道",
+                    ["両側新設", "片側新設", "既設利用", "なし"],
+                )
+                create_extra_details["区画線"] = st.selectbox(
+                    "区画線",
+                    ["施工予定", "施工済み", "一部施工予定"],
+                )
         else:
             create_work_type = ""
             create_restriction_type = st.selectbox("規制種別", ["通行止め", "道路規制"])
+            restriction_cols = st.columns(2)
+            with restriction_cols[0]:
+                create_extra_details = {
+                    "規制理由": st.selectbox(
+                        "規制理由",
+                        ["災害復旧", "道路損傷", "安全確保", "緊急点検", "仮設撤去"],
+                    ),
+                    "規制時間帯": st.selectbox(
+                        "規制時間帯",
+                        ["終日", "昼間", "夜間", "片側交互時間帯あり"],
+                    ),
+                }
+            with restriction_cols[1]:
+                create_extra_details["交通誘導員"] = st.selectbox(
+                    "交通誘導員",
+                    ["配置あり", "配置なし", "必要時配置"],
+                )
+                create_extra_details["許可状況"] = st.selectbox(
+                    "許可状況",
+                    ["申請予定", "申請中", "許可済み"],
+                )
 
         create_date_cols = st.columns(2)
         with create_date_cols[0]:
@@ -811,6 +939,7 @@ with st.sidebar:
                     contractor=create_contractor.strip(),
                     progress=create_progress,
                     note=create_note.strip(),
+                    extra_details=create_extra_details,
                 )
                 st.session_state["selected_restriction_id"] = created_id
                 st.session_state["edit_dialog_id"] = created_id
