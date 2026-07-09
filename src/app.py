@@ -104,6 +104,13 @@ def parse_progress(value):
         return 0
 
 
+def parse_date_for_input(value):
+    parsed = pd.to_datetime(value, errors="coerce")
+    if pd.isna(parsed):
+        return pd.Timestamp.today().date()
+    return parsed.date()
+
+
 def iter_coordinate_pairs(geometry):
     geometry_type = geometry.get("type")
     coordinates = geometry.get("coordinates", [])
@@ -499,6 +506,105 @@ st.markdown('<div class="main-title">珠洲市復旧道路管理マップ</div>'
 df, restriction_dict = load_excel(EXCEL_PATH)
 
 
+@st.dialog("項目を編集")
+def show_item_edit_dialog(item_id):
+    item_row = df[df["規制ID"] == item_id].iloc[0]
+    current_work_type = str(item_row.get("工事種別", "")).strip()
+    item_type = "工事" if current_work_type else "規制"
+
+    st.caption(f"{item_type} ID: {item_id}")
+    st.markdown(f"**{item_row['工事名']}**")
+
+    edit_name = st.text_input(
+        "工事名 / 規制名",
+        value=str(item_row["工事名"]),
+        key=f"dialog_name_{item_id}",
+    )
+
+    date_cols = st.columns(2)
+    with date_cols[0]:
+        edit_start = st.date_input(
+            "開始日",
+            value=parse_date_for_input(item_row["開始日"]),
+            key=f"dialog_start_{item_id}",
+        )
+    with date_cols[1]:
+        edit_end = st.date_input(
+            "終了日",
+            value=parse_date_for_input(item_row["終了日"]),
+            key=f"dialog_end_{item_id}",
+        )
+
+    edit_contractor = st.text_input(
+        "施工者",
+        value=str(item_row["施工者"]),
+        key=f"dialog_contractor_{item_id}",
+    )
+
+    edit_progress = st.number_input(
+        "進捗率",
+        min_value=0,
+        max_value=100,
+        value=parse_progress(item_row["進捗率"]),
+        key=f"dialog_progress_{item_id}",
+    )
+
+    work_type_options = [""] + list(WORK_TYPE_COLORS.keys())
+    if current_work_type not in work_type_options:
+        work_type_options.append(current_work_type)
+    edit_work_type = st.selectbox(
+        "工事種別",
+        work_type_options,
+        index=work_type_options.index(current_work_type),
+        key=f"dialog_work_type_{item_id}",
+    )
+
+    restriction_type_options = [
+        value
+        for value in df["規制種別"].dropna().astype(str).unique().tolist()
+        if value.strip()
+    ]
+    current_restriction_type = str(item_row.get("規制種別", "")).strip()
+    if current_restriction_type not in restriction_type_options:
+        restriction_type_options.append(current_restriction_type)
+    edit_restriction_type = current_restriction_type
+    if not edit_work_type:
+        edit_restriction_type = st.selectbox(
+            "規制種別",
+            restriction_type_options,
+            index=restriction_type_options.index(current_restriction_type),
+            key=f"dialog_restriction_type_{item_id}",
+        )
+
+    edit_note = st.text_area(
+        "備考",
+        value=str(item_row["備考"]),
+        key=f"dialog_note_{item_id}",
+    )
+
+    action_cols = st.columns(2)
+    with action_cols[0]:
+        if st.button("保存", type="primary", key=f"dialog_save_{item_id}"):
+            df.loc[df["規制ID"] == item_id, "工事名"] = edit_name
+            df.loc[df["規制ID"] == item_id, "開始日"] = pd.Timestamp(edit_start)
+            df.loc[df["規制ID"] == item_id, "終了日"] = pd.Timestamp(edit_end)
+            df.loc[df["規制ID"] == item_id, "施工者"] = edit_contractor
+            df.loc[df["規制ID"] == item_id, "進捗率"] = edit_progress
+            df.loc[df["規制ID"] == item_id, "工事種別"] = edit_work_type
+            df.loc[df["規制ID"] == item_id, "規制種別"] = edit_restriction_type
+            df.loc[df["規制ID"] == item_id, "備考"] = edit_note
+
+            save_excel(df, EXCEL_PATH)
+            st.session_state["edit_dialog_id"] = None
+            st.success(f"{item_id} を保存しました")
+            st.rerun()
+
+    with action_cols[1]:
+        if st.button("閉じる", key=f"dialog_close_{item_id}"):
+            st.session_state["edit_dialog_id"] = None
+            st.rerun()
+
+
 # Sidebar
 
 with st.sidebar:
@@ -602,49 +708,8 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
-    with st.form("selected_road_edit_form"):
-        edit_contractor = st.text_input(
-            "施工者",
-            value=str(edit_row["施工者"])
-        )
-
-        edit_progress = st.number_input(
-            "進捗率",
-            min_value=0,
-            max_value=100,
-            value=parse_progress(edit_row["進捗率"])
-        )
-
-        work_type_options = [""] + list(WORK_TYPE_COLORS.keys())
-        current_work_type = str(edit_row.get("工事種別", "")).strip()
-        if current_work_type not in work_type_options:
-            work_type_options.append(current_work_type)
-        edit_work_type = st.selectbox(
-            "工事種別",
-            work_type_options,
-            index=work_type_options.index(current_work_type),
-        )
-
-        edit_note = st.text_area(
-            "備考",
-            value=str(edit_row["備考"])
-        )
-
-        submitted = st.form_submit_button("保存")
-
-        if submitted:
-            df.loc[df["規制ID"] == edit_id, "施工者"] = edit_contractor
-            df.loc[df["規制ID"] == edit_id, "進捗率"] = edit_progress
-            df.loc[df["規制ID"] == edit_id, "工事種別"] = edit_work_type
-            df.loc[df["規制ID"] == edit_id, "備考"] = edit_note
-
-            backup_path = save_excel(df, EXCEL_PATH)
-            st.success(f"{edit_id} を保存しました")
-            if backup_path is not None:
-                st.caption(f"バックアップ作成：{backup_path.name}")
-            else:
-                st.caption("バックアップ作成：未確認")
-            st.rerun()
+    if st.button("選択項目を編集", type="primary", use_container_width=True):
+        st.session_state["edit_dialog_id"] = edit_id
 
 
 # GeoJSON load
@@ -912,7 +977,7 @@ map_output = st_folium(
     m,
     width=None,
     height=850,
-    returned_objects=["last_active_drawing"],
+    returned_objects=["last_active_drawing", "last_clicked"],
     key="main_map",
 )
 
@@ -920,6 +985,18 @@ if isinstance(map_output, dict):
     clicked_feature = map_output.get("last_active_drawing")
     clicked_props = clicked_feature.get("properties", {}) if isinstance(clicked_feature, dict) else {}
     clicked_id = str(clicked_props.get("規制ID", "")).strip()
-    if clicked_id and clicked_id in item_ids and clicked_id != st.session_state.get("selected_restriction_id"):
+    clicked_point = map_output.get("last_clicked") if isinstance(map_output.get("last_clicked"), dict) else {}
+    click_signature = (
+        clicked_id,
+        clicked_point.get("lat"),
+        clicked_point.get("lng"),
+    )
+    if clicked_id and clicked_id in item_ids and click_signature != st.session_state.get("last_clicked_item"):
         st.session_state["selected_restriction_id"] = clicked_id
+        st.session_state["edit_dialog_id"] = clicked_id
+        st.session_state["last_clicked_item"] = click_signature
         st.rerun()
+
+dialog_item_id = st.session_state.get("edit_dialog_id")
+if dialog_item_id in item_ids:
+    show_item_edit_dialog(dialog_item_id)
