@@ -111,6 +111,107 @@ def parse_date_for_input(value):
     return parsed.date()
 
 
+def next_record_id(existing_ids, prefix):
+    max_number = 0
+    for raw_id in existing_ids:
+        digits = "".join(char for char in str(raw_id) if char.isdigit())
+        if digits:
+            max_number = max(max_number, int(digits))
+    return f"{prefix}-{max_number + 1:03d}"
+
+
+def load_geojson():
+    with open(GEOJSON_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_geojson(geojson_data):
+    with open(GEOJSON_PATH, "w", encoding="utf-8") as f:
+        json.dump(geojson_data, f, ensure_ascii=False, indent=2)
+
+
+def make_placeholder_geometry(geojson_data, district, seed):
+    district_points = []
+    for feature in geojson_data.get("features", []):
+        if feature.get("properties", {}).get("重点地区") != district:
+            continue
+        district_points.extend(iter_coordinate_pairs(feature.get("geometry", {})))
+
+    if not district_points:
+        center_lng, center_lat = DEFAULT_LOCATION[1], DEFAULT_LOCATION[0]
+    else:
+        center_lng = sum(point[0] for point in district_points) / len(district_points)
+        center_lat = sum(point[1] for point in district_points) / len(district_points)
+
+    drift = ((seed % 11) - 5) * 0.00018
+    length = 0.00072 + (seed % 4) * 0.00012
+    return {
+        "type": "LineString",
+        "coordinates": [
+            [center_lng - length / 2, center_lat + drift],
+            [center_lng - length / 6, center_lat + drift / 2],
+            [center_lng + length / 6, center_lat - drift / 2],
+            [center_lng + length / 2, center_lat - drift],
+        ],
+    }
+
+
+def create_map_item(
+    item_kind,
+    district,
+    name,
+    work_type,
+    restriction_type,
+    start_date,
+    end_date,
+    contractor,
+    progress,
+    note,
+):
+    existing_ids = df["規制ID"].astype(str).tolist()
+    new_id = next_record_id(existing_ids, "C" if item_kind == "工事" else "R")
+    new_row = {
+        "規制ID": new_id,
+        "工事名": name,
+        "工事種別": work_type if item_kind == "工事" else "",
+        "規制種別": restriction_type,
+        "開始日": pd.Timestamp(start_date),
+        "終了日": pd.Timestamp(end_date),
+        "施工者": contractor,
+        "進捗率": progress,
+        "備考": note,
+    }
+
+    updated_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+    save_excel(updated_df, EXCEL_PATH)
+
+    current_geojson = load_geojson()
+    seed = int("".join(char for char in new_id if char.isdigit()) or "0")
+    current_geojson.setdefault("features", []).append(
+        {
+            "type": "Feature",
+            "properties": {
+                "N13_001": "",
+                "N13_002": "1",
+                "N13_003": "3",
+                "N13_004": "1",
+                "N13_005": 0,
+                "N13_006": "1",
+                "N13_007": "1",
+                "N13_008": "",
+                "規制ID": new_id,
+                "重点地区": district,
+                "元データ": "UI作成",
+                "抽出条件": "manual placeholder",
+                "地区中心からの距離km": 0,
+            },
+            "geometry": make_placeholder_geometry(current_geojson, district, seed),
+        }
+    )
+    save_geojson(current_geojson)
+    return new_id
+
+
 def iter_coordinate_pairs(geometry):
     geometry_type = geometry.get("type")
     coordinates = geometry.get("coordinates", [])
@@ -475,7 +576,7 @@ st.markdown(
         }
 
         .sidebar-brand-title {
-            font-size: 1.08rem;
+            font-size: 1.42rem;
             line-height: 1.25;
             font-weight: 800;
             color: #111827;
@@ -484,7 +585,7 @@ st.markdown(
         }
 
         .sidebar-brand-caption {
-            font-size: 0.76rem;
+            font-size: 0.86rem;
             line-height: 1.3;
             color: #6b7280;
             margin-top: 0.22rem;
@@ -647,10 +748,78 @@ with st.sidebar:
         contractors
     )
 
+    st.markdown("---")
+    st.subheader("➕ 新規作成")
+
+    with st.form("create_map_item_form", clear_on_submit=True):
+        create_kind = st.radio(
+            "作成タイプ",
+            ["工事", "規制"],
+            horizontal=True,
+        )
+        create_district = st.selectbox("重点地区", PRIORITY_DISTRICTS)
+        create_name = st.text_input(
+            "工事名 / 規制名",
+            value="",
+            placeholder="例: 市道3号舗装補修工事",
+        )
+
+        if create_kind == "工事":
+            create_work_type = st.selectbox("工事種別", list(WORK_TYPE_COLORS.keys()))
+            create_restriction_type = "道路規制"
+        else:
+            create_work_type = ""
+            create_restriction_type = st.selectbox("規制種別", ["通行止め", "道路規制"])
+
+        create_date_cols = st.columns(2)
+        with create_date_cols[0]:
+            create_start = st.date_input("開始日", value=default_period_start, key="create_start")
+        with create_date_cols[1]:
+            create_end = st.date_input("終了日", value=default_period_end, key="create_end")
+
+        create_contractor = st.text_input(
+            "施工者",
+            value="" if contractor_filter == "すべて" else contractor_filter,
+            placeholder="例: A建設",
+        )
+        create_progress = st.number_input(
+            "進捗率",
+            min_value=0,
+            max_value=100,
+            value=0,
+            step=1,
+        )
+        create_note = st.text_area("備考", value="", height=90)
+
+        create_submitted = st.form_submit_button("作成", type="primary", use_container_width=True)
+        if create_submitted:
+            if not create_name.strip():
+                st.error("工事名 / 規制名を入力してください。")
+            elif not create_contractor.strip():
+                st.error("施工者を入力してください。")
+            elif pd.to_datetime(create_start) > pd.to_datetime(create_end):
+                st.error("開始日は終了日以前にしてください。")
+            else:
+                created_id = create_map_item(
+                    item_kind=create_kind,
+                    district=create_district,
+                    name=create_name.strip(),
+                    work_type=create_work_type,
+                    restriction_type=create_restriction_type,
+                    start_date=create_start,
+                    end_date=create_end,
+                    contractor=create_contractor.strip(),
+                    progress=create_progress,
+                    note=create_note.strip(),
+                )
+                st.session_state["selected_restriction_id"] = created_id
+                st.session_state["edit_dialog_id"] = created_id
+                st.success(f"{created_id} を作成しました。")
+                st.rerun()
+
 
 # GeoJSON load
-with open(GEOJSON_PATH, "r", encoding="utf-8") as f:
-    geojson_data = json.load(f)
+geojson_data = load_geojson()
 
 all_features = geojson_data["features"]
 
