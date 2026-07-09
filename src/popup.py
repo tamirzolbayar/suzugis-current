@@ -1,4 +1,5 @@
 from datetime import datetime
+from html import escape
 
 from road_styles import RESTRICTION_RED, get_work_type_color
 
@@ -243,6 +244,22 @@ def popup_shell(title, badge_label, badge, side_id, body_html):
     """
 
 
+def wrapped_note_html(note):
+    return f"""
+        <div style="
+            margin-top:6px;
+            max-width:100%;
+            white-space:normal;
+            overflow-wrap:anywhere;
+            word-break:break-word;
+            line-break:anywhere;
+        ">
+            <b>備考:</b><br>
+            <span>{escape(str(note or ""))}</span>
+        </div>
+    """
+
+
 def make_construction_popup_html(props, actual, planned, work_type):
     start_date = format_japanese_date(props.get("開始日", ""))
     end_date = format_japanese_date(props.get("終了日", ""))
@@ -260,7 +277,7 @@ def make_construction_popup_html(props, actual, planned, work_type):
 
         <br>
 
-        <b>備考:</b> {props.get("備考","")}
+        {wrapped_note_html(props.get("備考",""))}
     """
 
     return popup_shell(
@@ -287,7 +304,7 @@ def make_restriction_popup_html(props, permit_link_html, actual, planned):
 
         <br>
 
-        <b>備考:</b> {props.get("備考","")}
+        {wrapped_note_html(props.get("備考",""))}
     """
 
     return popup_shell(

@@ -1,5 +1,4 @@
 import json
-import base64
 from pathlib import Path
 
 import folium
@@ -225,8 +224,6 @@ def prepare_map_properties(features):
 BASE_DIR = Path(__file__).resolve().parent.parent
 GEOJSON_PATH = BASE_DIR / "data" / "geojson" / "suzu_sample.geojson"
 EXCEL_PATH = BASE_DIR / "data" / "excel" / "restriction_list.xlsx"
-LOGO_PATH = BASE_DIR / "assets" / "suzugis-logo.png"
-LOGO_DATA_URI = "data:image/png;base64," + base64.b64encode(LOGO_PATH.read_bytes()).decode("ascii")
 DETOUR_COLOR = "#2e7d32"
 COMPLAINT_STATUS_COLORS = {
     "未対応": "#d32f2f",
@@ -472,17 +469,25 @@ st.markdown(
         }
 
         .sidebar-brand {
-            padding: 0 0 0.9rem 0;
+            padding: 0.15rem 0 0.7rem 0;
             border-bottom: 1px solid #d1d5db;
             margin-bottom: 1rem;
         }
 
-        .sidebar-brand img {
-            display: block;
-            width: 100%;
-            max-width: 17.8rem;
-            height: auto;
-            margin: 0 auto;
+        .sidebar-brand-title {
+            font-size: 1.08rem;
+            line-height: 1.25;
+            font-weight: 800;
+            color: #111827;
+            letter-spacing: 0;
+            margin: 0;
+        }
+
+        .sidebar-brand-caption {
+            font-size: 0.76rem;
+            line-height: 1.3;
+            color: #6b7280;
+            margin-top: 0.22rem;
         }
 
         [data-testid="stVerticalBlock"] {
@@ -605,9 +610,10 @@ def show_item_edit_dialog(item_id):
 
 with st.sidebar:
     st.markdown(
-        f"""
+        """
         <div class="sidebar-brand">
-            <img src="{LOGO_DATA_URI}" alt="珠洲市復旧道路管理マップ">
+            <div class="sidebar-brand-title">珠洲市復旧道路管理マップ</div>
+            <div class="sidebar-brand-caption">復旧道路・交通規制 管理画面</div>
         </div>
         """,
         unsafe_allow_html=True,
