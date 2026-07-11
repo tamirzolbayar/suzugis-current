@@ -611,8 +611,7 @@ df, restriction_dict = load_excel(EXCEL_PATH)
 item_ids = df["規制ID"].tolist()
 
 
-@st.dialog("項目を編集")
-def show_item_edit_dialog(item_id):
+def show_item_edit_form(item_id):
     item_row = df[df["規制ID"] == item_id].iloc[0]
     current_work_type = str(item_row.get("工事種別", "")).strip()
     item_type = "工事" if current_work_type else "規制"
@@ -750,6 +749,12 @@ with st.sidebar:
         "施工者を選択",
         contractors
     )
+
+    sidebar_edit_item_id = st.session_state.get("edit_dialog_id")
+    if sidebar_edit_item_id in item_ids:
+        st.markdown("---")
+        st.subheader("✏️ 選択項目を編集")
+        show_item_edit_form(sidebar_edit_item_id)
 
     st.markdown("---")
     st.subheader("➕ 新規作成")
@@ -1244,5 +1249,5 @@ if isinstance(map_output, dict):
         st.rerun()
 
 dialog_item_id = st.session_state.get("edit_dialog_id")
-if dialog_item_id in item_ids:
-    show_item_edit_dialog(dialog_item_id)
+if dialog_item_id and dialog_item_id not in item_ids:
+    st.session_state["edit_dialog_id"] = None
