@@ -750,6 +750,20 @@ with st.sidebar:
         contractors
     )
 
+    with st.expander("✏️ 既存項目を編集", expanded=False):
+        selected_edit_id = st.selectbox(
+            "編集する項目",
+            item_ids,
+            format_func=lambda item_id: (
+                f"{item_id} / "
+                f"{df.loc[df['規制ID'] == item_id, '工事名'].iloc[0]}"
+            ),
+            key="sidebar_edit_item_selector",
+        )
+        if st.button("編集を開く", type="primary", use_container_width=True):
+            st.session_state["edit_dialog_id"] = selected_edit_id
+            st.rerun()
+
     sidebar_edit_item_id = st.session_state.get("edit_dialog_id")
     if sidebar_edit_item_id in item_ids:
         st.markdown("---")
@@ -1228,25 +1242,9 @@ map_output = st_folium(
     m,
     width=None,
     height=850,
-    returned_objects=["last_active_drawing", "last_clicked"],
+    returned_objects=[],
     key="main_map",
 )
-
-if isinstance(map_output, dict):
-    clicked_feature = map_output.get("last_active_drawing")
-    clicked_props = clicked_feature.get("properties", {}) if isinstance(clicked_feature, dict) else {}
-    clicked_id = str(clicked_props.get("規制ID", "")).strip()
-    clicked_point = map_output.get("last_clicked") if isinstance(map_output.get("last_clicked"), dict) else {}
-    click_signature = (
-        clicked_id,
-        clicked_point.get("lat"),
-        clicked_point.get("lng"),
-    )
-    if clicked_id and clicked_id in item_ids and click_signature != st.session_state.get("last_clicked_item"):
-        st.session_state["selected_restriction_id"] = clicked_id
-        st.session_state["edit_dialog_id"] = clicked_id
-        st.session_state["last_clicked_item"] = click_signature
-        st.rerun()
 
 dialog_item_id = st.session_state.get("edit_dialog_id")
 if dialog_item_id and dialog_item_id not in item_ids:
