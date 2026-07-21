@@ -1005,9 +1005,20 @@ else:
     geojson_data["features"] = []
 
 
+active_features = [
+    feature
+    for feature in filtered_features
+    if str(feature.get("properties", {}).get("項目状態", "")).strip() != "候補"
+]
+candidate_features = [
+    feature
+    for feature in filtered_features
+    if str(feature.get("properties", {}).get("項目状態", "")).strip() == "候補"
+]
+
 # Counts
 restriction_counts = pd.Series(
-    [feature.get("properties", {}).get("規制種別", "") for feature in filtered_features]
+    [feature.get("properties", {}).get("規制種別", "") for feature in active_features]
 )
 visual_restriction_counts = restriction_counts.astype(str).apply(get_restriction_visual_type)
 
@@ -1016,12 +1027,13 @@ road_restriction_count = int((visual_restriction_counts == "道路規制").sum()
 work_type_counts = pd.Series(
     [
         str(feature.get("properties", {}).get("工事種別", "")).strip()
-        for feature in filtered_features
+        for feature in active_features
     ]
 )
+candidate_count = len(candidate_features)
 delayed_count = sum(
     1
-    for feature in filtered_features
+    for feature in active_features
     if parse_progress(feature.get("properties", {}).get("予定進捗率"))
     > parse_progress(feature.get("properties", {}).get("進捗率"))
 )
@@ -1055,9 +1067,12 @@ if len(geojson_data["features"]) > 0:
     prepare_map_properties(geojson_data["features"])
 
     layer_groups = []
+    if candidate_features:
+        layer_groups.append(("施工候補道路", candidate_features))
+
     restriction_features = [
         feature
-        for feature in geojson_data["features"]
+        for feature in active_features
         if not str(feature.get("properties", {}).get("工事種別", "")).strip()
     ]
     if restriction_features:
@@ -1066,7 +1081,7 @@ if len(geojson_data["features"]) > 0:
     for work_type in WORK_TYPE_COLORS:
         work_features = [
             feature
-            for feature in geojson_data["features"]
+            for feature in active_features
             if str(feature.get("properties", {}).get("工事種別", "")).strip() == work_type
         ]
         if work_features:
@@ -1174,6 +1189,7 @@ map_summary_html = f"""
     <div style="font-weight:700; font-size:13px; margin-bottom:6px;">📊 表示集計</div>
     <div style="display:grid; grid-template-columns: 1fr auto; gap:2px 12px;">
         {work_type_count_html}
+        {'<span>施工候補道路</span><strong>' + str(candidate_count) + '</strong>' if candidate_count else ''}
         <span>通行止め</span><strong>{road_closure_count}</strong>
         <span>道路規制</span><strong>{road_restriction_count}</strong>
         <span>遅延</span><strong>{delayed_count}</strong>
@@ -1189,6 +1205,7 @@ map_summary_html = f"""
             for work_type, color in WORK_TYPE_COLORS.items()
             if int((work_type_counts == work_type).sum()) > 0
         )}
+        {'<div><span style="display:inline-block;width:26px;border-top:5px dashed #9ca3af;margin-right:8px;vertical-align:middle;"></span>施工候補道路</div>' if candidate_count else ''}
         <div><span style="display:inline-block;width:26px;height:5px;background:#2e7d32;margin-right:8px;vertical-align:middle;"></span>迂回路</div>
         <div><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#d32f2f;color:white;text-align:center;line-height:18px;font-weight:800;margin-right:8px;vertical-align:middle;">!</span>苦情 未対応</div>
         <div><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#1b5e20;color:white;text-align:center;line-height:18px;font-weight:800;margin-right:8px;vertical-align:middle;">!</span>苦情 対応済み</div>

@@ -362,6 +362,25 @@ def make_construction_popup_html(props, actual, planned, work_type):
     )
 
 
+def make_candidate_popup_html(props):
+    body_html = f"""
+        {real_construction_source_html(props)}
+        <b>状態:</b> 未着手・施工候補<br>
+        <b>工事期間:</b> 未定<br><br>
+        <div style="color:#4b5563;">
+            施工者が開始時に選択して、工事情報を登録する道路です。
+        </div>
+    """
+
+    return popup_shell(
+        props.get("工事名", ""),
+        "施工候補道路",
+        "#6b7280",
+        props.get("実ID", "") or props.get("規制ID", ""),
+        body_html,
+    )
+
+
 def make_restriction_popup_html(props, permit_link_html, actual, planned):
     body_html = f"""
         <b>期間:</b> {props.get("開始日","")} ～ {props.get("終了日","")}<br>
@@ -394,6 +413,9 @@ def make_restriction_popup_html(props, permit_link_html, actual, planned):
 def make_popup_html(props, permit_link_html="未登録"):
     actual = int(str(props.get("進捗率", "0")).replace("%", ""))
     planned = int(str(props.get("予定進捗率", "0")).replace("%", ""))
+
+    if str(props.get("項目状態", "")).strip() == "候補":
+        return make_candidate_popup_html(props)
 
     work_type = str(props.get("工事種別", "")).strip()
 

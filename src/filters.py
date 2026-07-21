@@ -23,6 +23,12 @@ def apply_filters(
 
         props.update(restriction_dict[props["規制ID"]])
 
+        is_candidate = str(props.get("項目状態", "")).strip() == "候補"
+        if is_candidate:
+            props["予定進捗率"] = "0%"
+            filtered_features.append(feature)
+            continue
+
         restriction = str(props.get("規制種別", "")).strip()
         visual_type = get_restriction_visual_type(restriction)
 

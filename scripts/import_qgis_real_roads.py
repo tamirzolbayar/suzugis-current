@@ -33,6 +33,7 @@ COL_CONTRACTOR = "\u65bd\u5de5\u8005"
 COL_PROGRESS = "\u9032\u6357\u7387"
 COL_NOTE = "\u5099\u8003"
 
+COL_ITEM_STATUS = "\u9805\u76ee\u72b6\u614b"
 APP_REAL_ID = "\u5b9fID"
 SRC_ROAD_NAME = "\u9053\u8def\u540d\u79f0"
 SRC_ASSESSMENT = "\u67fb\u5b9a\u756a\u53f7"
@@ -187,6 +188,7 @@ def make_feature(qgis_feature: dict, excel_row: dict | None) -> dict:
             "QGIS_ID": item_id,
             "QGIS_fid": props.get("fid"),
             "QGIS_segment": segment,
+            COL_ITEM_STATUS: "\u5019\u88dc",
             APP_REAL_ID: item_id,
             "番号種別": (excel_row or {}).get(EXCEL_NUMBER_TYPE) or "",
             "道路名称": road_name,
@@ -241,6 +243,7 @@ def create_excel(qgis_features: list[dict], construction_rows: dict[str, dict]) 
         "舗装構成",
         "歩道",
         "区画線",
+        COL_ITEM_STATUS,
         APP_REAL_ID,
         "番号種別",
         "査定番号",
@@ -285,8 +288,8 @@ def create_excel(qgis_features: list[dict], construction_rows: dict[str, dict]) 
         values = {
             KEY_ID: record_id,
             COL_TITLE: title,
-            COL_WORK_TYPE: work_type,
-            COL_RESTRICTION_TYPE: "道路規制",
+            COL_WORK_TYPE: "",
+            COL_RESTRICTION_TYPE: "",
             COL_START: datetime(2026, 7, 15),
             COL_END: datetime(2026, 12, 31),
             COL_CONTRACTOR: "未設定",
@@ -300,6 +303,7 @@ def create_excel(qgis_features: list[dict], construction_rows: dict[str, dict]) 
             "舗装構成": "As舗装",
             "歩道": "既設利用",
             "区画線": "施工予定",
+            COL_ITEM_STATUS: "\u5019\u88dc",
             APP_REAL_ID: item_id if source_kind == "id" else "",
             "番号種別": source.get(EXCEL_NUMBER_TYPE) or "",
             "査定番号": source.get(EXCEL_ASSESSMENT) or fallback_props.get(SRC_ASSESSMENT) or "",
