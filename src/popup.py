@@ -287,18 +287,49 @@ def wrapped_note_html(note):
     """
 
 
+def real_construction_source_html(props):
+    if str(props.get("実データ", "")).strip().lower() != "true":
+        return ""
+
+    rows = []
+    for label, key in [
+        ("ID", "実ID"),
+        ("工事区分", "工事区分"),
+        ("番号種別", "番号種別"),
+        ("査定番号", "査定番号"),
+        ("箇所名", "箇所名"),
+        ("道路名称", "道路名称"),
+        ("復旧延長", "復旧延長_m"),
+        ("幅員", "幅員_m"),
+    ]:
+        value = props.get(key, "")
+        if value is None:
+            continue
+        value = str(value).strip()
+        if not value or value.lower() == "nan":
+            continue
+        suffix = "m" if key in ("復旧延長_m", "幅員_m") and not value.endswith("m") else ""
+        rows.append(f"<b>{label}:</b> {escape(value)}{suffix}<br>")
+
+    return "".join(rows) + ("<br>" if rows else "")
+
+
 def make_construction_popup_html(props, actual, planned, work_type):
     start_date = format_japanese_date(props.get("開始日", ""))
     end_date = format_japanese_date(props.get("終了日", ""))
-    body_html = f"""
+    source_html = real_construction_source_html(props)
+    common_html = (
+        source_html
+        if source_html
+        else f"""
         <b>工事ID:</b> {construction_id(props)}<br>
         <b>工事名:</b> {props.get("工事名","")}<br>
+        """
+    )
+    body_html = f"""
+        {common_html}
         <b>施工者:</b> {props.get("施工者","")}<br>
         <b>工事期間:</b> {start_date}～{end_date}<br><br>
-
-        {construction_details(props, work_type)}
-
-        <br>
 
         {make_progress_html(actual, planned)}
 

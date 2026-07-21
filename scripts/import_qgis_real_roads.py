@@ -33,6 +33,7 @@ COL_CONTRACTOR = "\u65bd\u5de5\u8005"
 COL_PROGRESS = "\u9032\u6357\u7387"
 COL_NOTE = "\u5099\u8003"
 
+APP_REAL_ID = "\u5b9fID"
 SRC_ROAD_NAME = "\u9053\u8def\u540d\u79f0"
 SRC_ASSESSMENT = "\u67fb\u5b9a\u756a\u53f7"
 SRC_DISTRICT = "\u5730\u533a"
@@ -50,6 +51,7 @@ EXCEL_PLACE = "\u7b87\u6240\u540d"
 EXCEL_LENGTH = "\u5fa9\u65e7\u5ef6\u9577_m"
 EXCEL_WIDTH = "\u5e45\u54e1_m"
 EXCEL_CONTENT = "\u5de5\u4e8b\u5185\u5bb9"
+EXCEL_NUMBER_TYPE = "\u756a\u53f7\u7a2e\u5225"
 PRIORITY_DISTRICTS = {"\u86f8\u5cf6", "\u6b63\u9662", "\u98ef\u7530", "\u4e0a\u6238", "\u76f4", "\u5b9d\u7acb"}
 
 
@@ -168,13 +170,13 @@ def load_base_geojson() -> dict:
 def make_feature(qgis_feature: dict, excel_row: dict | None) -> dict:
     props = qgis_feature["properties"]
     item_id = str(props.get(SRC_ID) or "").strip()
-    record_id = f"R-SHOIN-{item_id}" if item_id else f"R-SHOIN-F{props.get('fid')}"
+    raw_district = props.get(SRC_DISTRICT) or ""
+    district = raw_district if raw_district in PRIORITY_DISTRICTS else (excel_row or {}).get(EXCEL_DISTRICT) or raw_district or "正院"
+    record_id = f"R-REAL-{item_id}" if item_id else f"R-REAL-F{props.get('fid')}"
     road_name = props.get(SRC_ROAD_NAME) or (excel_row or {}).get(EXCEL_ROAD_NAME) or ""
     assessment = props.get(SRC_ASSESSMENT) or (excel_row or {}).get(EXCEL_ASSESSMENT) or ""
     segment = props.get(SRC_SEGMENT)
     title = (excel_row or {}).get(EXCEL_ITEM_NAME) or road_name or f"Real road {record_id}"
-    raw_district = props.get(SRC_DISTRICT) or ""
-    district = raw_district if raw_district in PRIORITY_DISTRICTS else (excel_row or {}).get(EXCEL_DISTRICT) or raw_district or "正院"
     return {
         "type": "Feature",
         "properties": {
@@ -185,8 +187,14 @@ def make_feature(qgis_feature: dict, excel_row: dict | None) -> dict:
             "QGIS_ID": item_id,
             "QGIS_fid": props.get("fid"),
             "QGIS_segment": segment,
+            APP_REAL_ID: item_id,
+            "番号種別": (excel_row or {}).get(EXCEL_NUMBER_TYPE) or "",
             "道路名称": road_name,
             "査定番号": str(assessment),
+            "箇所名": (excel_row or {}).get(EXCEL_PLACE) or "",
+            "復旧延長_m": (excel_row or {}).get(EXCEL_LENGTH) or "",
+            "幅員_m": (excel_row or {}).get(EXCEL_WIDTH) or "",
+            "工事内容": (excel_row or {}).get(EXCEL_CONTENT) or "",
             "工事区分": props.get(SRC_WORK) or (excel_row or {}).get(EXCEL_WORK) or "",
             "工事名": title,
             "実データ": "true",
@@ -233,8 +241,14 @@ def create_excel(qgis_features: list[dict], construction_rows: dict[str, dict]) 
         "舗装構成",
         "歩道",
         "区画線",
+        APP_REAL_ID,
+        "番号種別",
         "査定番号",
         "箇所名",
+        "復旧延長_m",
+        "幅員_m",
+        "工事区分",
+        "道路名称",
         "QGIS_ID",
     ]
     for header in needed:
@@ -257,13 +271,13 @@ def create_excel(qgis_features: list[dict], construction_rows: dict[str, dict]) 
     row_sources.extend(("fid", str(feature["properties"].get("fid")), feature) for feature in fallback_features)
 
     for source_kind, item_id, fallback_feature in row_sources:
-        record_id = f"R-SHOIN-{item_id}" if source_kind == "id" else f"R-SHOIN-F{item_id}"
+        record_id = f"R-REAL-{item_id}" if source_kind == "id" else f"R-REAL-F{item_id}"
         if record_id in existing_ids:
             continue
         source = construction_rows.get(item_id, {}) if source_kind == "id" else {}
         fallback_props = (fallback_feature or {}).get("properties", {})
         work_type = normalize_work_type(source.get(EXCEL_WORK) or fallback_props.get(SRC_WORK))
-        road_name = source.get(EXCEL_ROAD_NAME) or source.get(EXCEL_ITEM_NAME) or fallback_props.get(SRC_ROAD_NAME) or ""
+        road_name = source.get(EXCEL_ROAD_NAME) or fallback_props.get(SRC_ROAD_NAME) or source.get(EXCEL_ITEM_NAME) or ""
         title = source.get(EXCEL_ITEM_NAME) or road_name or f"正院 real road {item_id}"
         length = source.get(EXCEL_LENGTH) or ""
         width = source.get(EXCEL_WIDTH) or ""
@@ -277,8 +291,8 @@ def create_excel(qgis_features: list[dict], construction_rows: dict[str, dict]) 
             COL_END: datetime(2026, 12, 31),
             COL_CONTRACTOR: "未設定",
             COL_PROGRESS: 0,
-            COL_NOTE: f"QGIS real geometry / 正院 / ID {item_id}",
-            "施工内容": "道路復旧",
+            COL_NOTE: "",
+            "施工内容": source.get(EXCEL_CONTENT) or "道路復旧",
             "施工延長": length,
             "道路種別": "市道",
             "道路幅員_前": before_width,
@@ -286,8 +300,14 @@ def create_excel(qgis_features: list[dict], construction_rows: dict[str, dict]) 
             "舗装構成": "As舗装",
             "歩道": "既設利用",
             "区画線": "施工予定",
+            APP_REAL_ID: item_id if source_kind == "id" else "",
+            "番号種別": source.get(EXCEL_NUMBER_TYPE) or "",
             "査定番号": source.get(EXCEL_ASSESSMENT) or fallback_props.get(SRC_ASSESSMENT) or "",
             "箇所名": source.get(EXCEL_PLACE) or "",
+            "復旧延長_m": length,
+            "幅員_m": width,
+            "工事区分": source.get(EXCEL_WORK) or fallback_props.get(SRC_WORK) or "",
+            "道路名称": road_name,
             "QGIS_ID": item_id if source_kind == "id" else "",
         }
         row_idx = ws.max_row + 1
