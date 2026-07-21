@@ -303,6 +303,7 @@ def real_construction_source_html(props):
 
     is_candidate = str(props.get("項目状態", "")).strip() == "候補"
     rows = []
+    segment_value = display_value(props.get("QGIS_segment", "") or props.get("工事区画", ""))
     field_pairs = [
         ("地区", "重点地区"),
         ("査定番号", "査定番号"),
@@ -323,6 +324,8 @@ def real_construction_source_html(props):
             continue
         suffix = "m" if key in ("復旧延長_m", "幅員_m") and not value.endswith("m") else ""
         rows.append(f"<b>{label}:</b> {escape(value)}{suffix}<br>")
+        if key == "重点地区" and segment_value:
+            rows.append(f"<b>工事区画:</b> {escape(segment_value)}<br>")
 
     return "".join(rows) + ("<br>" if rows else "")
 

@@ -379,11 +379,45 @@ def contractor_options_with_current(current=""):
     return options
 
 
+def normalize_segment_value(value):
+    if value is None or value == "":
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).strip()
+
+
+def available_segments_for_item(item_id):
+    segments = []
+    seen = set()
+    for feature in globals().get("all_features", []):
+        props = feature.get("properties", {})
+        if str(props.get("規制ID", "")).strip() != str(item_id):
+            continue
+        segment = normalize_segment_value(props.get("QGIS_segment") or props.get("工事区画"))
+        if segment and segment not in seen:
+            seen.add(segment)
+            segments.append(segment)
+
+    def sort_key(segment):
+        try:
+            return (0, int(segment))
+        except ValueError:
+            return (1, segment)
+
+    return sorted(segments, key=sort_key)
+
+
 def is_candidate_row(row):
     return row_value(row, "項目状態") == "候補"
 
 
-def activate_candidate_work(item_id, contractor, start_date, end_date, progress, note):
+def activate_candidate_work(item_id, contractor, start_date, end_date, progress, note, work_segment=""):
     mask = df["規制ID"].astype(str) == str(item_id)
     if not mask.any():
         return False
@@ -399,6 +433,8 @@ def activate_candidate_work(item_id, contractor, start_date, end_date, progress,
     df.loc[mask, "施工者"] = contractor
     df.loc[mask, "進捗率"] = progress
     df.loc[mask, "備考"] = note
+    if work_segment:
+        df.loc[mask, "工事区画"] = str(work_segment)
     save_excel(df, EXCEL_PATH)
     return True
 
@@ -427,6 +463,18 @@ def show_candidate_start_dialog(item_id):
         st.write(f"復旧延長: {restoration_length}m")
 
     with st.form(f"start_candidate_work_{item_id}"):
+        segment_options = available_segments_for_item(item_id)
+        clicked_segment = normalize_segment_value(st.session_state.get("selected_candidate_segment", ""))
+        selected_work_segment = ""
+        if segment_options:
+            segment_index = segment_options.index(clicked_segment) if clicked_segment in segment_options else 0
+            selected_work_segment = st.selectbox(
+                "工事区画",
+                segment_options,
+                index=segment_index,
+                format_func=lambda segment: f"工事区画：{segment}",
+                key=f"start_segment_{item_id}",
+            )
         contractor = st.selectbox(
             "施工者",
             contractor_options_with_current(row_value(item_row, "施工者")),
@@ -452,14 +500,17 @@ def show_candidate_start_dialog(item_id):
                     end_date=end_date,
                     progress=progress,
                     note=note.strip(),
+                    work_segment=selected_work_segment,
                 )
                 st.session_state["selected_candidate_id"] = None
+                st.session_state["selected_candidate_segment"] = ""
                 st.session_state["selected_restriction_id"] = item_id
                 st.success("工事を開始しました。")
                 st.rerun()
 
     if st.button("閉じる", key=f"clear_candidate_{item_id}", use_container_width=True):
         st.session_state["selected_candidate_id"] = None
+        st.session_state["selected_candidate_segment"] = ""
         st.rerun()
 
 
@@ -1420,10 +1471,15 @@ map_output = st_folium(
 clicked_feature = (map_output or {}).get("last_active_drawing")
 clicked_props = (clicked_feature or {}).get("properties", {})
 clicked_item_id = str(clicked_props.get("規制ID", "")).strip()
+clicked_segment = normalize_segment_value(clicked_props.get("QGIS_segment") or clicked_props.get("工事区画"))
 if clicked_item_id:
     if str(clicked_props.get("項目状態", "")).strip() == "候補":
-        if st.session_state.get("selected_candidate_id") != clicked_item_id:
+        if (
+            st.session_state.get("selected_candidate_id") != clicked_item_id
+            or st.session_state.get("selected_candidate_segment") != clicked_segment
+        ):
             st.session_state["selected_candidate_id"] = clicked_item_id
+            st.session_state["selected_candidate_segment"] = clicked_segment
             st.session_state["edit_dialog_id"] = None
             st.session_state["selected_restriction_id"] = clicked_item_id
             st.rerun()
