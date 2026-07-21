@@ -14,7 +14,6 @@ def style_by_restriction(feature, selected_id=None):
             "color": "#9ca3af",
             "weight": 4,
             "opacity": 0.62,
-            "dashArray": "8, 7",
         }
 
     if props.get("規制ID") == selected_id:

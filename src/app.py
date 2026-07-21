@@ -1068,7 +1068,7 @@ if len(geojson_data["features"]) > 0:
 
     layer_groups = []
     if candidate_features:
-        layer_groups.append(("施工候補道路", candidate_features))
+        layer_groups.append(("道路復旧工事（未着手）", candidate_features))
 
     restriction_features = [
         feature
@@ -1085,7 +1085,8 @@ if len(geojson_data["features"]) > 0:
             if str(feature.get("properties", {}).get("工事種別", "")).strip() == work_type
         ]
         if work_features:
-            layer_groups.append((work_type, work_features))
+            layer_label = "道路復旧工事（施工中）" if work_type == "道路復旧工事" else work_type
+            layer_groups.append((layer_label, work_features))
 
     for layer_name, layer_features in layer_groups:
         layer = folium.GeoJson(
@@ -1189,7 +1190,7 @@ map_summary_html = f"""
     <div style="font-weight:700; font-size:13px; margin-bottom:6px;">📊 表示集計</div>
     <div style="display:grid; grid-template-columns: 1fr auto; gap:2px 12px;">
         {work_type_count_html}
-        {'<span>施工候補道路</span><strong>' + str(candidate_count) + '</strong>' if candidate_count else ''}
+        {'<span>道路復旧工事（未着手）</span><strong>' + str(candidate_count) + '</strong>' if candidate_count else ''}
         <span>通行止め</span><strong>{road_closure_count}</strong>
         <span>道路規制</span><strong>{road_restriction_count}</strong>
         <span>遅延</span><strong>{delayed_count}</strong>
@@ -1201,11 +1202,11 @@ map_summary_html = f"""
         <div><span style="display:inline-block;width:26px;height:5px;background:{RESTRICTION_RED};margin-right:8px;vertical-align:middle;"></span>通行止め</div>
         <div><span style="display:inline-block;width:26px;border-top:5px dotted {RESTRICTION_RED};margin-right:8px;vertical-align:middle;"></span>道路規制</div>
         {''.join(
-            f'<div><span style="display:inline-block;width:26px;height:5px;background:{color};margin-right:8px;vertical-align:middle;"></span>{work_type}</div>'
+            f'<div><span style="display:inline-block;width:26px;height:5px;background:{color};margin-right:8px;vertical-align:middle;"></span>{"道路復旧工事（施工中）" if work_type == "道路復旧工事" else work_type}</div>'
             for work_type, color in WORK_TYPE_COLORS.items()
             if int((work_type_counts == work_type).sum()) > 0
         )}
-        {'<div><span style="display:inline-block;width:26px;border-top:5px dashed #9ca3af;margin-right:8px;vertical-align:middle;"></span>施工候補道路</div>' if candidate_count else ''}
+        {'<div><span style="display:inline-block;width:26px;height:5px;background:#9ca3af;margin-right:8px;vertical-align:middle;"></span>道路復旧工事（未着手）</div>' if candidate_count else ''}
         <div><span style="display:inline-block;width:26px;height:5px;background:#2e7d32;margin-right:8px;vertical-align:middle;"></span>迂回路</div>
         <div><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#d32f2f;color:white;text-align:center;line-height:18px;font-weight:800;margin-right:8px;vertical-align:middle;">!</span>苦情 未対応</div>
         <div><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#1b5e20;color:white;text-align:center;line-height:18px;font-weight:800;margin-right:8px;vertical-align:middle;">!</span>苦情 対応済み</div>

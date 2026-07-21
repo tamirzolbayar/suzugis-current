@@ -237,6 +237,7 @@ def construction_details(props, work_type):
 
 
 def popup_shell(title, badge_label, badge, side_id, body_html):
+    title = display_value(title) or "名称未設定"
     return f"""
     <div style="
         font-size:13px;
@@ -304,15 +305,20 @@ def real_construction_source_html(props):
     if str(props.get("実データ", "")).strip().lower() != "true":
         return ""
 
+    is_candidate = str(props.get("項目状態", "")).strip() == "候補"
     rows = []
-    for label, key in [
+    field_pairs = [
         ("ID", "実ID"),
         ("査定番号", "査定番号"),
         ("箇所名", "箇所名"),
         ("道路名称", "道路名称"),
         ("復旧延長", "復旧延長_m"),
         ("幅員", "幅員_m"),
-    ]:
+    ]
+    if is_candidate:
+        field_pairs.insert(1, ("工事区分", "工事区分"))
+
+    for label, key in field_pairs:
         value = props.get(key, "")
         if value is None:
             continue
@@ -363,20 +369,22 @@ def make_construction_popup_html(props, actual, planned, work_type):
 
 
 def make_candidate_popup_html(props):
+    title = (
+        props.get("道路名称", "")
+        or props.get("工事名", "")
+        or props.get("箇所名", "")
+        or f"ID {display_value(props.get('実ID', ''))}"
+    )
     body_html = f"""
         {real_construction_source_html(props)}
         <b>状態:</b> 未着手・施工候補<br>
-        <b>工事期間:</b> 未定<br><br>
-        <div style="color:#4b5563;">
-            施工者が開始時に選択して、工事情報を登録する道路です。
-        </div>
     """
 
     return popup_shell(
-        props.get("工事名", ""),
-        "施工候補道路",
+        title,
+        "道路復旧工事（未着手）",
         "#6b7280",
-        props.get("実ID", "") or props.get("規制ID", ""),
+        display_value(props.get("実ID", "")) or props.get("規制ID", ""),
         body_html,
     )
 
