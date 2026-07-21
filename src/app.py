@@ -326,8 +326,8 @@ def prepare_map_properties(features):
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-GEOJSON_PATH = BASE_DIR / "data" / "geojson" / "suzu_sample.geojson"
-EXCEL_PATH = BASE_DIR / "data" / "excel" / "restriction_list.xlsx"
+GEOJSON_PATH = BASE_DIR / "data" / "geojson" / "suzu_with_real_roads.geojson"
+EXCEL_PATH = BASE_DIR / "data" / "excel" / "restriction_list_with_real_roads.xlsx"
 DETOUR_COLOR = "#2e7d32"
 COMPLAINT_STATUS_COLORS = {
     "未対応": "#d32f2f",
