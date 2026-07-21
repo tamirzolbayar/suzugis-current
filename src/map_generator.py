@@ -11,9 +11,9 @@ def style_by_restriction(feature, selected_id=None):
 
     if is_candidate:
         return {
-            "color": "#9ca3af",
+            "color": "#475569",
             "weight": 4,
-            "opacity": 0.62,
+            "opacity": 0.78,
         }
 
     if props.get("規制ID") == selected_id:

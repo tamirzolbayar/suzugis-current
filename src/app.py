@@ -1234,7 +1234,7 @@ map_summary_html = f"""
             for work_type, color in WORK_TYPE_COLORS.items()
             if int((work_type_counts == work_type).sum()) > 0
         )}
-        {'<div><span style="display:inline-block;width:26px;height:5px;background:#9ca3af;margin-right:8px;vertical-align:middle;"></span>道路復旧工事（未着手）</div>' if candidate_count else ''}
+        {'<div><span style="display:inline-block;width:26px;height:5px;background:#475569;margin-right:8px;vertical-align:middle;"></span>道路復旧工事（未着手）</div>' if candidate_count else ''}
         <div><span style="display:inline-block;width:26px;height:5px;background:#2e7d32;margin-right:8px;vertical-align:middle;"></span>迂回路</div>
         <div><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#d32f2f;color:white;text-align:center;line-height:18px;font-weight:800;margin-right:8px;vertical-align:middle;">!</span>苦情 未対応</div>
         <div><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#1b5e20;color:white;text-align:center;line-height:18px;font-weight:800;margin-right:8px;vertical-align:middle;">!</span>苦情 対応済み</div>

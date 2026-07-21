@@ -383,7 +383,7 @@ def make_candidate_popup_html(props):
     return popup_shell(
         title,
         "道路復旧工事（未着手）",
-        "#6b7280",
+        "#475569",
         display_value(props.get("実ID", "")) or props.get("規制ID", ""),
         body_html,
     )
