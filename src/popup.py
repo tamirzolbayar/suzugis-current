@@ -307,7 +307,6 @@ def real_construction_source_html(props):
     rows = []
     for label, key in [
         ("ID", "実ID"),
-        ("番号種別", "番号種別"),
         ("査定番号", "査定番号"),
         ("箇所名", "箇所名"),
         ("道路名称", "道路名称"),
