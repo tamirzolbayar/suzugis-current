@@ -124,6 +124,19 @@ def detail_value(props, key, fallback):
     return value if value and value.lower() != "nan" else fallback
 
 
+def display_value(value):
+    if value is None:
+        return ""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    value = str(value).strip()
+    if value.endswith(".0"):
+        head = value[:-2]
+        if head.replace("-", "", 1).isdigit():
+            return head
+    return value
+
+
 def restriction_details(props):
     rows = []
     for label, key in [
@@ -294,7 +307,6 @@ def real_construction_source_html(props):
     rows = []
     for label, key in [
         ("ID", "実ID"),
-        ("工事区分", "工事区分"),
         ("番号種別", "番号種別"),
         ("査定番号", "査定番号"),
         ("箇所名", "箇所名"),
@@ -305,7 +317,7 @@ def real_construction_source_html(props):
         value = props.get(key, "")
         if value is None:
             continue
-        value = str(value).strip()
+        value = display_value(value)
         if not value or value.lower() == "nan":
             continue
         suffix = "m" if key in ("復旧延長_m", "幅員_m") and not value.endswith("m") else ""
@@ -315,8 +327,12 @@ def real_construction_source_html(props):
 
 
 def make_construction_popup_html(props, actual, planned, work_type):
+    is_real_data = str(props.get("実データ", "")).strip().lower() == "true"
     start_date = format_japanese_date(props.get("開始日", ""))
     end_date = format_japanese_date(props.get("終了日", ""))
+    period = "未定" if is_real_data else f"{start_date}～{end_date}"
+    display_work_type = display_value(props.get("工事区分", "")) if is_real_data else work_type
+    display_work_type = display_work_type or work_type
     source_html = real_construction_source_html(props)
     common_html = (
         source_html
@@ -329,7 +345,7 @@ def make_construction_popup_html(props, actual, planned, work_type):
     body_html = f"""
         {common_html}
         <b>施工者:</b> {props.get("施工者","")}<br>
-        <b>工事期間:</b> {start_date}～{end_date}<br><br>
+        <b>工事期間:</b> {period}<br><br>
 
         {make_progress_html(actual, planned)}
 
@@ -340,7 +356,7 @@ def make_construction_popup_html(props, actual, planned, work_type):
 
     return popup_shell(
         props.get("工事名", ""),
-        work_type,
+        display_work_type,
         get_work_type_color(work_type, RESTRICTION_RED),
         construction_id(props),
         body_html,
