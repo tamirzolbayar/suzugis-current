@@ -40,10 +40,14 @@ class FeatureInfoBinder(MacroElement):
                 if (props._info_html) {
                     layer.bindTooltip(props._info_html, {
                         sticky: true,
-                        className: "road-info-tooltip"
+                        className: "road-info-tooltip",
+                        offset: L.point(24, -18)
                     });
                     layer.bindPopup(props._info_html, {
-                        maxWidth: 450
+                        maxWidth: 450,
+                        offset: L.point(0, -46),
+                        autoPanPadding: [80, 80],
+                        keepInView: true
                     });
                 }
             });
@@ -391,7 +395,8 @@ def activate_candidate_work(item_id, contractor, start_date, end_date, progress,
     return True
 
 
-def show_candidate_start_form(item_id):
+@st.dialog("工事開始", width="small")
+def show_candidate_start_dialog(item_id):
     item_row = df[df["規制ID"].astype(str) == str(item_id)].iloc[0]
     road_name = (
         row_value(item_row, "道路名称")
@@ -400,7 +405,6 @@ def show_candidate_start_form(item_id):
         or str(item_id)
     )
 
-    st.subheader("🚧 工事開始")
     st.caption("未着手道路を施工中に切り替えます")
     st.markdown(f"**{road_name}**")
     st.write(f"ID: {row_value(item_row, '実ID') or item_id}")
@@ -445,7 +449,7 @@ def show_candidate_start_form(item_id):
                 st.success("工事を開始しました。")
                 st.rerun()
 
-    if st.button("選択を解除", key=f"clear_candidate_{item_id}", use_container_width=True):
+    if st.button("閉じる", key=f"clear_candidate_{item_id}", use_container_width=True):
         st.session_state["selected_candidate_id"] = None
         st.rerun()
 
@@ -894,14 +898,6 @@ with st.sidebar:
         st.markdown("---")
         st.subheader("✏️ 選択項目を編集")
         show_item_edit_form(sidebar_edit_item_id)
-
-    selected_candidate_id = st.session_state.get("selected_candidate_id")
-    if (
-        selected_candidate_id in item_ids
-        and is_candidate_row(df[df["規制ID"] == selected_candidate_id].iloc[0])
-    ):
-        st.markdown("---")
-        show_candidate_start_form(selected_candidate_id)
 
     st.markdown("---")
     st.subheader("➕ 新規作成")
@@ -1411,6 +1407,13 @@ if clicked_item_id:
     elif clicked_item_id in item_ids:
         if st.session_state.get("selected_restriction_id") != clicked_item_id:
             st.session_state["selected_restriction_id"] = clicked_item_id
+
+selected_candidate_id = st.session_state.get("selected_candidate_id")
+if (
+    selected_candidate_id in item_ids
+    and is_candidate_row(df[df["規制ID"] == selected_candidate_id].iloc[0])
+):
+    show_candidate_start_dialog(selected_candidate_id)
 
 dialog_item_id = st.session_state.get("edit_dialog_id")
 if dialog_item_id and dialog_item_id not in item_ids:
