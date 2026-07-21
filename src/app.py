@@ -1,4 +1,5 @@
 import json
+from datetime import date, datetime
 from pathlib import Path
 
 import folium
@@ -323,6 +324,33 @@ def prepare_map_properties(features):
             "登録済" if get_permit_pdf_path(BASE_DIR, restriction_id).exists() else "未登録"
         )
         props["_info_html"] = make_popup_html(props, permit_link_html)
+        sanitize_feature_properties(feature)
+
+
+def json_safe_value(value):
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    if isinstance(value, pd.Timestamp):
+        return value.strftime("%Y-%m-%d")
+    if isinstance(value, (datetime, date)):
+        return value.strftime("%Y-%m-%d")
+    if hasattr(value, "item"):
+        return value.item()
+    return value
+
+
+def sanitize_feature_properties(feature):
+    props = feature.setdefault("properties", {})
+    for key, value in list(props.items()):
+        safe_value = json_safe_value(value)
+        if not isinstance(safe_value, (str, int, float, bool)) and safe_value is not None:
+            safe_value = str(safe_value)
+        props[key] = safe_value
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
