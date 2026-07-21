@@ -14,7 +14,7 @@ from popup import (
     decode_code,
     make_popup_html,
 )
-from map_generator import style_by_restriction
+from map_generator import highlight_by_restriction, style_by_restriction
 from excel_loader import load_excel, save_excel
 from filters import apply_filters
 from config import DEFAULT_LOCATION, DEFAULT_ZOOM, MAP_STYLES
@@ -1083,6 +1083,7 @@ if len(geojson_data["features"]) > 0:
                 feature,
                 st.session_state.get("selected_restriction_id")
             ),
+            highlight_function=highlight_by_restriction,
         ).add_to(m)
         m.add_child(FeatureInfoBinder(layer))
 

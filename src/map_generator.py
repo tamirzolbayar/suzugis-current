@@ -23,3 +23,19 @@ def style_by_restriction(feature, selected_id=None):
     if not work_type and visual_type == "道路規制":
         style["dashArray"] = "2, 9"
     return style
+
+
+def highlight_by_restriction(feature):
+    props = feature.get("properties", {})
+    restriction = str(props.get("規制種別", "")).strip()
+    work_type = str(props.get("工事種別", "")).strip()
+    visual_type = get_restriction_visual_type(restriction)
+
+    style = {
+        "color": "#facc15",
+        "weight": 11,
+        "opacity": 1.0,
+    }
+    if not work_type and visual_type == "道路規制":
+        style["dashArray"] = "2, 9"
+    return style
