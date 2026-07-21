@@ -236,7 +236,7 @@ def construction_details(props, work_type):
     return road_details(props, work_type)
 
 
-def popup_shell(title, badge_label, badge, side_id, body_html):
+def popup_shell(title, badge_label, badge, body_html):
     title = display_value(title) or "名称未設定"
     return f"""
     <div style="
@@ -266,10 +266,6 @@ def popup_shell(title, badge_label, badge, side_id, body_html):
             font-weight:bold;
         ">
             {badge_label}
-        </span>
-
-        <span style="float:right;color:#666;">
-            {side_id}
         </span>
 
         <br>
@@ -308,7 +304,7 @@ def real_construction_source_html(props):
     is_candidate = str(props.get("項目状態", "")).strip() == "候補"
     rows = []
     field_pairs = [
-        ("ID", "実ID"),
+        ("地区", "重点地区"),
         ("査定番号", "査定番号"),
         ("箇所名", "箇所名"),
         ("道路名称", "道路名称"),
@@ -344,7 +340,7 @@ def make_construction_popup_html(props, actual, planned, work_type):
         source_html
         if source_html
         else f"""
-        <b>工事ID:</b> {construction_id(props)}<br>
+        <b>地区:</b> {props.get("重点地区","")}<br>
         <b>工事名:</b> {props.get("工事名","")}<br>
         """
     )
@@ -364,7 +360,6 @@ def make_construction_popup_html(props, actual, planned, work_type):
         props.get("工事名", ""),
         display_work_type,
         get_work_type_color(work_type, RESTRICTION_RED),
-        construction_id(props),
         body_html,
     )
 
@@ -374,7 +369,7 @@ def make_candidate_popup_html(props):
         props.get("道路名称", "")
         or props.get("工事名", "")
         or props.get("箇所名", "")
-        or f"ID {display_value(props.get('実ID', ''))}"
+        or "名称未設定"
     )
     body_html = f"""
         {real_construction_source_html(props)}
@@ -385,13 +380,13 @@ def make_candidate_popup_html(props):
         title,
         "道路復旧工事（未着手）",
         "#475569",
-        display_value(props.get("実ID", "")) or props.get("規制ID", ""),
         body_html,
     )
 
 
 def make_restriction_popup_html(props, permit_link_html, actual, planned):
     body_html = f"""
+        <b>地区:</b> {props.get("重点地区","")}<br>
         <b>期間:</b> {props.get("開始日","")} ～ {props.get("終了日","")}<br>
         <b>施工者:</b> {props.get("施工者","")}<br>
         <b>道路使用許可:</b> {permit_link_html}<br><br>
@@ -414,7 +409,6 @@ def make_restriction_popup_html(props, permit_link_html, actual, planned):
         props.get("工事名", ""),
         str(props.get("規制種別", "")).strip(),
         RESTRICTION_RED,
-        props.get("規制ID", ""),
         body_html,
     )
 

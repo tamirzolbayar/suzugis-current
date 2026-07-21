@@ -371,6 +371,14 @@ def row_value(row, key, default=""):
     return str(value).strip()
 
 
+def contractor_options_with_current(current=""):
+    options = CONTRACTOR_OPTIONS.copy()
+    current_value = str(current or "").strip()
+    if current_value and current_value not in options:
+        options.append(current_value)
+    return options
+
+
 def is_candidate_row(row):
     return row_value(row, "項目状態") == "候補"
 
@@ -402,12 +410,11 @@ def show_candidate_start_dialog(item_id):
         row_value(item_row, "道路名称")
         or row_value(item_row, "工事名")
         or row_value(item_row, "箇所名")
-        or str(item_id)
+        or "名称未設定"
     )
 
     st.caption("未着手道路を施工中に切り替えます")
     st.markdown(f"**{road_name}**")
-    st.write(f"ID: {row_value(item_row, '実ID') or item_id}")
     st.write(f"工事区分: {row_value(item_row, '工事区分', '道路復旧工事')}")
     assessment = row_value(item_row, "査定番号")
     if assessment:
@@ -420,7 +427,11 @@ def show_candidate_start_dialog(item_id):
         st.write(f"復旧延長: {restoration_length}m")
 
     with st.form(f"start_candidate_work_{item_id}"):
-        contractor = st.text_input("施工者", placeholder="例: A建設")
+        contractor = st.selectbox(
+            "施工者",
+            contractor_options_with_current(row_value(item_row, "施工者")),
+            key=f"start_contractor_{item_id}",
+        )
         date_cols = st.columns(2)
         with date_cols[0]:
             start_date = st.date_input("開始日", value=default_period_start)
@@ -431,9 +442,7 @@ def show_candidate_start_dialog(item_id):
         submitted = st.form_submit_button("工事開始", type="primary", use_container_width=True)
 
         if submitted:
-            if not contractor.strip():
-                st.error("施工者を入力してください。")
-            elif pd.to_datetime(start_date) > pd.to_datetime(end_date):
+            if pd.to_datetime(start_date) > pd.to_datetime(end_date):
                 st.error("開始日は終了予定日以前にしてください。")
             else:
                 activate_candidate_work(
@@ -463,6 +472,14 @@ COMPLAINT_STATUS_COLORS = {
     "対応済み": "#1b5e20",
     "対応中": "#7c3aed",
 }
+CONTRACTOR_OPTIONS = [
+    "A建設",
+    "B土木",
+    "珠洲道路",
+    "奥能登建設JV",
+    "北陸舗装",
+    "能登復旧組",
+]
 SAMPLE_DETOUR_ROUTES = [
     {"name": "飯田地区 サンプル迂回路 1", "restriction_ids": ["R-203"]},
     {"name": "飯田地区 サンプル迂回路 2", "restriction_ids": ["R-188", "R-206"]},
@@ -743,9 +760,7 @@ item_ids = df["規制ID"].tolist()
 def show_item_edit_form(item_id):
     item_row = df[df["規制ID"] == item_id].iloc[0]
     current_work_type = str(item_row.get("工事種別", "")).strip()
-    item_type = "工事" if current_work_type else "規制"
 
-    st.caption(f"{item_type} ID: {item_id}")
     st.markdown(f"**{item_row['工事名']}**")
 
     edit_name = st.text_input(
@@ -768,9 +783,13 @@ def show_item_edit_form(item_id):
             key=f"dialog_end_{item_id}",
         )
 
-    edit_contractor = st.text_input(
+    edit_contractor_options = contractor_options_with_current(item_row["施工者"])
+    edit_contractor = st.selectbox(
         "施工者",
-        value=str(item_row["施工者"]),
+        edit_contractor_options,
+        index=edit_contractor_options.index(str(item_row["施工者"]).strip())
+        if str(item_row["施工者"]).strip() in edit_contractor_options
+        else 0,
         key=f"dialog_contractor_{item_id}",
     )
 
@@ -829,7 +848,7 @@ def show_item_edit_form(item_id):
 
             save_excel(df, EXCEL_PATH)
             st.session_state["edit_dialog_id"] = None
-            st.success(f"{item_id} を保存しました")
+            st.success("保存しました")
             st.rerun()
 
     with action_cols[1]:
@@ -884,7 +903,6 @@ with st.sidebar:
             "編集する項目",
             item_ids,
             format_func=lambda item_id: (
-                f"{item_id} / "
                 f"{df.loc[df['規制ID'] == item_id, '工事名'].iloc[0]}"
             ),
             key="sidebar_edit_item_selector",
@@ -1065,10 +1083,17 @@ with st.sidebar:
         with create_date_cols[1]:
             create_end = st.date_input("終了日", value=default_period_end, key="create_end")
 
-        create_contractor = st.text_input(
+        default_create_contractor = "" if contractor_filter == "すべて" else contractor_filter
+        create_contractor_options = contractor_options_with_current(default_create_contractor)
+        create_contractor_index = (
+            create_contractor_options.index(default_create_contractor)
+            if default_create_contractor in create_contractor_options
+            else 0
+        )
+        create_contractor = st.selectbox(
             "施工者",
-            value="" if contractor_filter == "すべて" else contractor_filter,
-            placeholder="例: A建設",
+            create_contractor_options,
+            index=create_contractor_index,
         )
         create_progress = st.number_input(
             "進捗率",
@@ -1083,8 +1108,6 @@ with st.sidebar:
         if create_submitted:
             if not create_name.strip():
                 st.error("工事名 / 規制名を入力してください。")
-            elif not create_contractor.strip():
-                st.error("施工者を入力してください。")
             elif pd.to_datetime(create_start) > pd.to_datetime(create_end):
                 st.error("開始日は終了日以前にしてください。")
             else:
@@ -1103,7 +1126,7 @@ with st.sidebar:
                 )
                 st.session_state["selected_restriction_id"] = created_id
                 st.session_state["edit_dialog_id"] = created_id
-                st.success(f"{created_id} を作成しました。")
+                st.success("作成しました。")
                 st.rerun()
 
 
