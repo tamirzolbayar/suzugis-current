@@ -26,6 +26,8 @@ def apply_filters(
         is_candidate = str(props.get("項目状態", "")).strip() == "候補"
         if is_candidate:
             props["予定進捗率"] = "0%"
+            props["開始日"] = ""
+            props["終了日"] = ""
             filtered_features.append(feature)
             continue
 
