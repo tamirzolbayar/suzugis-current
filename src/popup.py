@@ -333,9 +333,10 @@ def real_construction_source_html(props):
 
 def make_construction_popup_html(props, actual, planned, work_type):
     is_real_data = str(props.get("実データ", "")).strip().lower() == "true"
+    is_candidate = str(props.get("項目状態", "")).strip() == "候補"
     start_date = format_japanese_date(props.get("開始日", ""))
     end_date = format_japanese_date(props.get("終了日", ""))
-    period = "未定" if is_real_data else f"{start_date}～{end_date}"
+    period = "未定" if is_candidate else f"{start_date}～{end_date}"
     display_work_type = display_value(props.get("工事区分", "")) if is_real_data else work_type
     display_work_type = display_work_type or work_type
     source_html = real_construction_source_html(props)

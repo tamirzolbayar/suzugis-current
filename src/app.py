@@ -353,6 +353,103 @@ def sanitize_feature_properties(feature):
         props[key] = safe_value
 
 
+def row_value(row, key, default=""):
+    value = row.get(key, default)
+    if value is None:
+        return default
+    try:
+        if pd.isna(value):
+            return default
+    except (TypeError, ValueError):
+        pass
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).strip()
+
+
+def is_candidate_row(row):
+    return row_value(row, "項目状態") == "候補"
+
+
+def activate_candidate_work(item_id, contractor, start_date, end_date, progress, note):
+    mask = df["規制ID"].astype(str) == str(item_id)
+    if not mask.any():
+        return False
+
+    current_row = df.loc[mask].iloc[0]
+    source_work_type = row_value(current_row, "工事区分", "道路復旧工事") or "道路復旧工事"
+
+    df.loc[mask, "項目状態"] = "施工中"
+    df.loc[mask, "工事種別"] = source_work_type
+    df.loc[mask, "規制種別"] = "道路規制"
+    df.loc[mask, "開始日"] = pd.Timestamp(start_date)
+    df.loc[mask, "終了日"] = pd.Timestamp(end_date)
+    df.loc[mask, "施工者"] = contractor
+    df.loc[mask, "進捗率"] = progress
+    df.loc[mask, "備考"] = note
+    save_excel(df, EXCEL_PATH)
+    return True
+
+
+def show_candidate_start_form(item_id):
+    item_row = df[df["規制ID"].astype(str) == str(item_id)].iloc[0]
+    road_name = (
+        row_value(item_row, "道路名称")
+        or row_value(item_row, "工事名")
+        or row_value(item_row, "箇所名")
+        or str(item_id)
+    )
+
+    st.subheader("🚧 工事開始")
+    st.caption("未着手道路を施工中に切り替えます")
+    st.markdown(f"**{road_name}**")
+    st.write(f"ID: {row_value(item_row, '実ID') or item_id}")
+    st.write(f"工事区分: {row_value(item_row, '工事区分', '道路復旧工事')}")
+    assessment = row_value(item_row, "査定番号")
+    if assessment:
+        st.write(f"査定番号: {assessment}")
+    place = row_value(item_row, "箇所名")
+    if place:
+        st.write(f"箇所名: {place}")
+    restoration_length = row_value(item_row, "復旧延長_m")
+    if restoration_length:
+        st.write(f"復旧延長: {restoration_length}m")
+
+    with st.form(f"start_candidate_work_{item_id}"):
+        contractor = st.text_input("施工者", placeholder="例: A建設")
+        date_cols = st.columns(2)
+        with date_cols[0]:
+            start_date = st.date_input("開始日", value=default_period_start)
+        with date_cols[1]:
+            end_date = st.date_input("終了予定日", value=default_period_end)
+        progress = st.number_input("進捗率", min_value=0, max_value=100, value=0, step=1)
+        note = st.text_area("備考", value="", height=80)
+        submitted = st.form_submit_button("工事開始", type="primary", use_container_width=True)
+
+        if submitted:
+            if not contractor.strip():
+                st.error("施工者を入力してください。")
+            elif pd.to_datetime(start_date) > pd.to_datetime(end_date):
+                st.error("開始日は終了予定日以前にしてください。")
+            else:
+                activate_candidate_work(
+                    item_id=item_id,
+                    contractor=contractor.strip(),
+                    start_date=start_date,
+                    end_date=end_date,
+                    progress=progress,
+                    note=note.strip(),
+                )
+                st.session_state["selected_candidate_id"] = None
+                st.session_state["selected_restriction_id"] = item_id
+                st.success("工事を開始しました。")
+                st.rerun()
+
+    if st.button("選択を解除", key=f"clear_candidate_{item_id}", use_container_width=True):
+        st.session_state["selected_candidate_id"] = None
+        st.rerun()
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 GEOJSON_PATH = BASE_DIR / "data" / "geojson" / "suzu_with_real_roads.geojson"
 EXCEL_PATH = BASE_DIR / "data" / "excel" / "restriction_list_with_real_roads.xlsx"
@@ -797,6 +894,14 @@ with st.sidebar:
         st.markdown("---")
         st.subheader("✏️ 選択項目を編集")
         show_item_edit_form(sidebar_edit_item_id)
+
+    selected_candidate_id = st.session_state.get("selected_candidate_id")
+    if (
+        selected_candidate_id in item_ids
+        and is_candidate_row(df[df["規制ID"] == selected_candidate_id].iloc[0])
+    ):
+        st.markdown("---")
+        show_candidate_start_form(selected_candidate_id)
 
     st.markdown("---")
     st.subheader("➕ 新規作成")
@@ -1289,9 +1394,23 @@ map_output = st_folium(
     m,
     width=None,
     height=850,
-    returned_objects=[],
+    returned_objects=["last_active_drawing"],
     key="main_map",
 )
+
+clicked_feature = (map_output or {}).get("last_active_drawing")
+clicked_props = (clicked_feature or {}).get("properties", {})
+clicked_item_id = str(clicked_props.get("規制ID", "")).strip()
+if clicked_item_id:
+    if str(clicked_props.get("項目状態", "")).strip() == "候補":
+        if st.session_state.get("selected_candidate_id") != clicked_item_id:
+            st.session_state["selected_candidate_id"] = clicked_item_id
+            st.session_state["edit_dialog_id"] = None
+            st.session_state["selected_restriction_id"] = clicked_item_id
+            st.rerun()
+    elif clicked_item_id in item_ids:
+        if st.session_state.get("selected_restriction_id") != clicked_item_id:
+            st.session_state["selected_restriction_id"] = clicked_item_id
 
 dialog_item_id = st.session_state.get("edit_dialog_id")
 if dialog_item_id and dialog_item_id not in item_ids:

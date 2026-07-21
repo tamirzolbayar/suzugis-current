@@ -10,6 +10,12 @@ def style_by_restriction(feature, selected_id=None):
     color = get_work_type_color(work_type)
 
     if is_candidate:
+        if props.get("規制ID") == selected_id:
+            return {
+                "color": "#334155",
+                "weight": 8,
+                "opacity": 1.0,
+            }
         return {
             "color": "#475569",
             "weight": 4,
